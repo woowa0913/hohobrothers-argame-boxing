@@ -280,7 +280,7 @@
           
           <!-- AR 복싱 중앙 핵심 돔구조 -->
           <video id="webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror z-0 opacity-85"></video>
-          <canvas id="ar-canvas" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></canvas>
+          <canvas id="ar-canvas" class="absolute inset-0 w-full h-full object-cover z-10 pointer-events-none"></canvas>
           
           <!-- 2인용 대결 모드용 중앙 분할선 -->
           <div id="duel-divider" class="absolute top-0 bottom-0 left-1/2 w-2 bg-yellow-400 shadow-lg z-20 -translate-x-1/2 hidden"></div>
@@ -1015,8 +1015,8 @@
       try {
         const constraints = {
           video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
             facingMode: "user"
           },
           audio: false
@@ -1300,6 +1300,16 @@
 
     function onHandResults(results) {
       if (!state.isPlaying || state.isPaused || state.isTouchMode) return;
+      
+      // 방어 코드: 실제 비디오 해상도가 확보되는 즉시 캔버스 픽셀 해상도를 자동 정렬
+      const videoW = el.video.videoWidth || 1280;
+      const videoH = el.video.videoHeight || 720;
+      if (el.canvas.width !== videoW || el.canvas.height !== videoH) {
+        stageWidth = videoW;
+        stageHeight = videoH;
+        el.canvas.width = videoW;
+        el.canvas.height = videoH;
+      }
       
       el.ctx.clearRect(0, 0, stageWidth, stageHeight);
       
