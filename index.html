@@ -374,6 +374,16 @@
         <span>테스트용 마우스 터치 판정 허용</span>
         <input type="checkbox" id="config-touch-override" class="w-4 h-4 rounded text-blue-600" checked>
       </div>
+      <div class="pt-2 border-t border-slate-100">
+        <label class="block text-xs text-slate-500 mb-1">🎵 배경음악(BGM) 볼륨</label>
+        <input type="range" id="config-bgm-volume" min="0" max="1" step="0.05" value="0.4" class="w-full">
+        <div class="flex justify-between text-xs text-slate-400"><span id="config-bgm-volume-txt">40%</span></div>
+      </div>
+      <div class="pt-2 border-t border-slate-100">
+        <label class="block text-xs text-slate-500 mb-1">🥊 효과음(SFX) 볼륨</label>
+        <input type="range" id="config-sfx-volume" min="0" max="1" step="0.05" value="0.4" class="w-full">
+        <div class="flex justify-between text-xs text-slate-400"><span id="config-sfx-volume-txt">40%</span></div>
+      </div>
       <button id="btn-reset-best" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-lg border text-xs transition-colors">
         🏆 최고기록 초기화
       </button>
@@ -472,6 +482,8 @@
       punchExtensionThreshold: 1.12,
       targetBaseSize: 110,
       soundVolume: 0.15,
+      bgmVolume: 0.4,
+      sfxVolume: 0.4,
       debugPose: false,
       mirrorCamera: true,
       touchOverride: true
@@ -698,6 +710,14 @@
       updateSoundButtonUI();
     }
 
+    // 개별 볼륨 설정 불러오기
+    if (localStorage.getItem("arBoxing_bgmVolume") !== null) {
+      CONFIG.bgmVolume = parseFloat(localStorage.getItem("arBoxing_bgmVolume"));
+    }
+    if (localStorage.getItem("arBoxing_sfxVolume") !== null) {
+      CONFIG.sfxVolume = parseFloat(localStorage.getItem("arBoxing_sfxVolume"));
+    }
+
     // Web Audio API 초기화
     function initAudio() {
       if (audioCtx) return;
@@ -705,7 +725,7 @@
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContextClass();
         mainGainNode = audioCtx.createGain();
-        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.soundVolume : 0, audioCtx.currentTime);
+        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.sfxVolume : 0, audioCtx.currentTime);
         mainGainNode.connect(audioCtx.destination);
       } catch (e) {
         console.error("AudioContext 초기화 오류:", e);
@@ -889,7 +909,11 @@
       localStorage.setItem("arBoxing_sound", isSoundOn);
       updateSoundButtonUI();
       if (mainGainNode && audioCtx) {
-        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.soundVolume : 0, audioCtx.currentTime);
+        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.sfxVolume : 0, audioCtx.currentTime);
+      }
+      const bgmPlayer = document.getElementById("bgm-player");
+      if (bgmPlayer) {
+        bgmPlayer.volume = isSoundOn ? CONFIG.bgmVolume : 0;
       }
     }
 
@@ -1176,6 +1200,14 @@
           triggerCoachPhrase();
         }
       }, 8000);
+
+      // 배경음악(BGM) 재생 시작 및 볼륨 세팅
+      const bgmPlayer = document.getElementById("bgm-player");
+      if (bgmPlayer) {
+        bgmPlayer.volume = isSoundOn ? CONFIG.bgmVolume : 0;
+        bgmPlayer.currentTime = 0;
+        bgmPlayer.play().catch(e => console.log("BGM play error:", e));
+      }
     }
 
     function setupMissionsForLevel(level) {
@@ -1446,10 +1478,11 @@
     function drawGlove(x, y) {
       const ctx = el.ctx;
       
-      // 1인용이면 빨간색, 2인용이면 파란색
       const isDuel = state.gameMode === "duel";
-      const gloveColor = isDuel ? "#3b82f6" : "#ef4444"; // 파란색(Blue) : 빨간색(Red)
-      const strokeColor = isDuel ? "#1d4ed8" : "#b91c1c";
+      // 1인용이면 무조건 빨간색 글러브. 2인용이면 왼쪽(P1)은 빨간색, 오른쪽(P2)은 파란색.
+      const isLeftPlayer = x < stageWidth / 2;
+      const gloveColor = (isDuel && !isLeftPlayer) ? "#3b82f6" : "#ef4444";
+      const strokeColor = (isDuel && !isLeftPlayer) ? "#1d4ed8" : "#b91c1c";
       
       ctx.save();
       ctx.translate(x, y);
@@ -2014,6 +2047,13 @@
       if (window.coachTimer) clearInterval(window.coachTimer);
       deactivateSpecialMode();
 
+      // BGM 정지
+      const bgmPlayer = document.getElementById("bgm-player");
+      if (bgmPlayer) {
+        bgmPlayer.pause();
+        bgmPlayer.currentTime = 0;
+      }
+
       // UI 요소 정리
       el.targetLayer.innerHTML = "";
 
@@ -2154,6 +2194,43 @@
       el.configTargetSizeTxt.textContent = `${e.target.value}px`;
     });
 
+    // BGM & SFX 볼륨 슬라이더 감지 리스너
+    const configBgmVolume = document.getElementById("config-bgm-volume");
+    const configBgmVolumeTxt = document.getElementById("config-bgm-volume-txt");
+    const configSfxVolume = document.getElementById("config-sfx-volume");
+    const configSfxVolumeTxt = document.getElementById("config-sfx-volume-txt");
+
+    if (configBgmVolume && configBgmVolumeTxt) {
+      configBgmVolume.value = CONFIG.bgmVolume;
+      configBgmVolumeTxt.textContent = `${Math.round(CONFIG.bgmVolume * 100)}%`;
+      configBgmVolume.addEventListener("input", (e) => {
+        const val = parseFloat(e.target.value);
+        CONFIG.bgmVolume = val;
+        configBgmVolumeTxt.textContent = `${Math.round(val * 100)}%`;
+        localStorage.setItem("arBoxing_bgmVolume", val);
+        // 재생중인 BGM 실시간 반영
+        const bgmPlayer = document.getElementById("bgm-player");
+        if (bgmPlayer) {
+          bgmPlayer.volume = isSoundOn ? val : 0;
+        }
+      });
+    }
+
+    if (configSfxVolume && configSfxVolumeTxt) {
+      configSfxVolume.value = CONFIG.sfxVolume;
+      configSfxVolumeTxt.textContent = `${Math.round(CONFIG.sfxVolume * 100)}%`;
+      configSfxVolume.addEventListener("input", (e) => {
+        const val = parseFloat(e.target.value);
+        CONFIG.sfxVolume = val;
+        configSfxVolumeTxt.textContent = `${Math.round(val * 100)}%`;
+        localStorage.setItem("arBoxing_sfxVolume", val);
+        // 재생중인 Web Audio API SFX 실시간 반영
+        if (mainGainNode && audioCtx) {
+          mainGainNode.gain.setValueAtTime(isSoundOn ? val : 0, audioCtx.currentTime);
+        }
+      });
+    }
+
     el.btnResetBest.addEventListener("click", () => {
       if (confirm("모든 스테이지의 최고 기록을 초기화할까요?")) {
         for (let i = 1; i <= 5; i++) {
@@ -2201,12 +2278,16 @@
       if (state.isPlaying && !state.isPaused) {
         state.isPaused = true;
         el.pauseScreen.classList.replace("hidden", "flex");
+        const bgmPlayer = document.getElementById("bgm-player");
+        if (bgmPlayer) bgmPlayer.pause();
       }
     });
 
     el.btnResume.addEventListener("click", () => {
       state.isPaused = false;
       el.pauseScreen.classList.replace("flex", "hidden");
+      const bgmPlayer = document.getElementById("bgm-player");
+      if (bgmPlayer && isSoundOn) bgmPlayer.play().catch(e => console.log("BGM resume error:", e));
     });
 
     el.btnRestartStage.addEventListener("click", () => {
@@ -2243,6 +2324,13 @@
       if (window.coachTimer) clearInterval(window.coachTimer);
       stopCamera();
       deactivateSpecialMode();
+
+      // BGM 정지
+      const bgmPlayer = document.getElementById("bgm-player");
+      if (bgmPlayer) {
+        bgmPlayer.pause();
+        bgmPlayer.currentTime = 0;
+      }
 
       el.targetLayer.innerHTML = "";
       el.introScreen.classList.remove("hidden");
@@ -2312,5 +2400,6 @@
     updateLevelProgressHUD();
 
   </script>
+  <audio id="bgm-player" src="호호_브라더스.mp3" loop></audio>
 </body>
 </html>
