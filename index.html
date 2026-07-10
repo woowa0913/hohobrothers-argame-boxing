@@ -1,0 +1,2305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AR 복싱 챌린지 - 어린이 AR 체육 교실</title>
+  <!-- Google Fonts: Jua 적용 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- MediaPipe Hands & Camera Utils CDN (모기팡 구조 차용) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    /* 전체 폰트 적용 */
+    body {
+      font-family: 'Jua', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+      overflow-x: hidden;
+    }
+    
+    /* 포커스 링 스타일 */
+    button:focus-visible {
+      outline: 4px solid #f472b6;
+    }
+
+    /* 반사 효과 */
+    .mirror {
+      transform: scaleX(-1);
+    }
+
+    /* 키프레임 애니메이션 */
+    @keyframes bounce-slow {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .animate-bounce-slow {
+      animation: bounce-slow 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.9; transform: scale(1.03); }
+    }
+    .animate-pulse-soft {
+      animation: pulse-soft 2s infinite ease-in-out;
+    }
+
+    @keyframes target-spawn {
+      0% { transform: scale(0); opacity: 0; }
+      70% { transform: scale(1.15); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .target-entrance {
+      animation: target-spawn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes target-hit-pop {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .target-hit-animate {
+      animation: target-hit-pop 0.3s ease-out forwards;
+    }
+
+    /* 무지개 테두리 효과 (별빛 타임) */
+    @keyframes rainbow-border {
+      0% { border-color: #f472b6; box-shadow: 0 0 15px #f472b6; }
+      25% { border-color: #fbbf24; box-shadow: 0 0 15px #fbbf24; }
+      50% { border-color: #34d399; box-shadow: 0 0 15px #34d399; }
+      75% { border-color: #60a5fa; box-shadow: 0 0 15px #60a5fa; }
+      100% { border-color: #c084fc; box-shadow: 0 0 15px #c084fc; }
+    }
+    .special-active-border {
+      animation: rainbow-border 2s infinite linear;
+      border-width: 6px;
+    }
+
+    /* 접근성: prefers-reduced-motion 대응 */
+    @media (prefers-reduced-motion: reduce) {
+      .animate-bounce-slow, .animate-pulse-soft, .target-entrance, .target-hit-animate, .special-active-border {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-700 flex flex-col antialiased">
+
+  <!-- ==================== [INTRO LAYER] ==================== -->
+  <div id="intro-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-sky-400 via-blue-400 to-indigo-500 text-white text-center select-none overflow-y-auto">
+    <!-- 배경 부유 오브젝트 -->
+    <div class="absolute top-10 left-10 text-6xl opacity-30 animate-bounce-slow" style="animation-delay: 0s;">⭐</div>
+    <div class="absolute top-20 right-16 text-7xl opacity-20 animate-bounce-slow" style="animation-delay: 1s;">☁️</div>
+    <div class="absolute bottom-16 left-16 text-6xl opacity-25 animate-bounce-slow" style="animation-delay: 2s;">🎈</div>
+    <div class="absolute bottom-24 right-20 text-5xl opacity-30 animate-bounce-slow" style="animation-delay: 0.5s;">☀️</div>
+
+    <div class="max-w-xl w-full bg-white/10 backdrop-blur-md rounded-3xl p-8 border-4 border-white/20 shadow-2xl relative">
+      <!-- 로고 & 타이틀 -->
+      <div class="mb-2 inline-flex bg-yellow-300 text-blue-900 text-lg px-4 py-1 rounded-full shadow-md font-bold">
+        👦 어린이 신체 활동 AR 게임 👧
+      </div>
+      <h1 class="text-5xl md:text-6xl text-yellow-300 drop-shadow-[0_4px_0_rgba(30,58,138,1)] tracking-wide mb-3">
+        AR 복싱 챌린지
+      </h1>
+      <p class="text-xl md:text-2xl text-cyan-100 font-light mb-8">
+        주먹을 쭉 뻗어 별과 구름을 맞혀 보세요!
+      </p>
+
+      <!-- 코치 캐릭터 SVG -->
+      <div class="w-36 h-36 mx-auto mb-6 drop-shadow-lg">
+        <svg viewBox="0 0 100 100" class="w-full h-full animate-bounce-slow">
+          <!-- 구름 몸체 -->
+          <path d="M 20 60 A 15 15 0 0 1 35 45 A 18 18 0 0 1 65 45 A 15 15 0 0 1 80 60 A 12 12 0 0 1 70 75 L 30 75 A 12 12 0 0 1 20 60 Z" fill="#ffffff" />
+          <!-- 빨간 띠 (헤드밴드) -->
+          <rect x="26" y="47" width="48" height="6" rx="3" fill="#ef4444" />
+          <path d="M 74 49 L 82 45 L 80 53 Z" fill="#b91c1c" />
+          <!-- 눈 / 볼터치 -->
+          <circle cx="42" cy="58" r="3.5" fill="#1e293b" />
+          <path d="M 58 58 A 3 3 0 0 0 64 58" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          <circle cx="36" cy="62" r="4.5" fill="#f472b6" opacity="0.6" />
+          <circle cx="64" cy="62" r="4.5" fill="#f472b6" opacity="0.6" />
+          <!-- 웃는 입 -->
+          <path d="M 48 64 Q 50 68 52 64" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" fill="none" />
+          <!-- 호루라기 -->
+          <path d="M 50 75 L 50 82" stroke="#fbbf24" stroke-width="3" />
+          <rect x="46" y="81" width="8" height="6" rx="1.5" fill="#ef4444" />
+        </svg>
+      </div>
+
+      <!-- 안내 수칙 -->
+      <div class="bg-white/10 rounded-2xl p-5 mb-8 text-left text-sm md:text-base space-y-2 border border-white/10">
+        <div class="flex items-center gap-3">
+          <span class="text-xl">📏</span>
+          <span>카메라에서 <strong>1.5 ~ 2미터</strong> 뒤로 물러서서 준비해 주세요.</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xl">🛡️</span>
+          <span>주변에 부딪힐 수 있는 위험한 가구나 물건이 없는지 꼭 살펴봐요!</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xl">❤️</span>
+          <span>다른 사람이나 반려동물을 향해 주먹을 휘두르지 않도록 약속해요!</span>
+        </div>
+      </div>
+
+      <!-- 로딩 / 시작 조작 영역 (1인용/2인용 모드 토글 추가) -->
+      <div id="intro-action-area" class="space-y-4">
+        <div class="flex gap-2 p-1 bg-white/10 rounded-2xl border border-white/20">
+          <button id="btn-mode-single" class="flex-1 bg-yellow-400 text-blue-900 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm" aria-label="1인용 모드 선택">
+            👤 1인용 모드
+          </button>
+          <button id="btn-mode-duel" class="flex-1 bg-white/10 hover:bg-white/20 text-white font-extrabold py-2 px-4 rounded-xl transition-all" aria-label="2인용 대결 모드 선택">
+            👥 2인용 대결
+          </button>
+        </div>
+
+        <button id="btn-start-camera" class="w-full bg-yellow-400 hover:bg-yellow-300 text-blue-900 font-extrabold text-2xl px-8 py-5 rounded-2xl shadow-[0_6px_0_#d97706] hover:translate-y-[2px] hover:shadow-[0_4px_0_#d97706] transition-all flex items-center justify-center gap-3" aria-label="카메라 켜고 신체 인식 게임 시작하기">
+          <i class="fa-solid fa-camera-retro"></i> 카메라 켜고 시작하기
+        </button>
+        
+        <button id="btn-start-touch" class="w-full bg-sky-200/20 hover:bg-sky-200/30 text-white font-bold text-lg px-8 py-3 rounded-2xl border-2 border-white/30 transition-all" aria-label="카메라 없이 화면 터치로 게임 체험하기">
+          🖱️ 카메라 없이 마우스/터치로 체험하기
+        </button>
+      </div>
+
+      <!-- 로딩 진행율 상태 -->
+      <div id="intro-loading" class="hidden space-y-3">
+        <div class="flex justify-between text-cyan-100 text-sm">
+          <span id="loading-status-text">카메라 초기화 중...</span>
+          <span id="loading-percentage">0%</span>
+        </div>
+        <div class="w-full bg-white/15 h-4 rounded-full overflow-hidden border border-white/10 p-[2px]">
+          <div id="loading-bar" class="h-full bg-yellow-300 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- 에러 메세지 및 복구 -->
+      <div id="intro-error" class="hidden bg-orange-100 text-orange-950 border-2 border-orange-300 rounded-2xl p-4 text-left space-y-3">
+        <p class="font-bold text-lg">⚠️ 카메라 연결에 문제가 발생했습니다.</p>
+        <p class="text-sm">보안 정책상 웹캠/카메라는 HTTPS 또는 localhost 환경에서만 활성화됩니다. 카메라 권한을 확인하시거나 아래의 대체 모드를 선택해 주세요.</p>
+        <div class="flex gap-2">
+          <button id="btn-retry-camera" class="flex-1 bg-yellow-400 text-blue-900 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm">
+            다시 시도
+          </button>
+          <button id="btn-fallback-touch" class="flex-1 bg-white/20 hover:bg-white/30 text-white font-extrabold py-2 px-4 rounded-xl transition-all border border-white/30">
+            마우스/터치로 시작
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [메인 게임 콘텐츠 및 레이아웃] ==================== -->
+  <main class="flex-1 flex flex-col p-3 md:p-4 w-full gap-4 relative">
+    
+    <!-- 1. 상단 HUD -->
+    <header class="bg-white/95 rounded-3xl p-3 md:p-4 border-4 border-sky-300 shadow-md flex flex-wrap items-center justify-between gap-3 relative w-full">
+      <!-- 로고 -->
+      <div class="flex items-center gap-2">
+        <div class="text-2xl md:text-3xl text-sky-600 tracking-tight font-extrabold flex items-center gap-1">
+          <span class="text-yellow-400 drop-shadow-[0_2px_0_#0284c7]">AR</span>복싱 챌린지⭐
+        </div>
+        <span id="badge-touch-mode" class="hidden bg-orange-100 text-orange-700 text-xs px-2.5 py-0.5 rounded-full border border-orange-200 font-bold">체험 모드</span>
+      </div>
+
+      <!-- 정보 지표 그룹 -->
+      <div class="flex flex-wrap items-center gap-4 text-base md:text-lg">
+        <!-- 점수 -->
+        <div class="flex items-center gap-2 bg-sky-50 px-3 py-1.5 rounded-2xl border-2 border-sky-100">
+          <span class="text-2xl">⭐</span>
+          <span class="text-slate-500 text-sm hidden md:inline">점수</span>
+          <span id="hud-score" class="font-black text-xl md:text-2xl text-blue-600">0</span>
+        </div>
+
+        <!-- 콤보 -->
+        <div class="flex items-center gap-2 bg-pink-50 px-3 py-1.5 rounded-2xl border-2 border-pink-100">
+          <span class="text-2xl">🔥</span>
+          <span class="text-slate-500 text-sm hidden md:inline font-bold">콤보</span>
+          <span id="hud-combo" class="font-black text-xl md:text-2xl text-pink-500">0</span>
+        </div>
+
+        <!-- 시간 -->
+        <div class="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-2xl border-2 border-blue-100">
+          <span class="text-2xl">⏱️</span>
+          <span class="text-slate-500 text-sm hidden md:inline">남은 시간</span>
+          <span id="hud-timer" class="font-black text-xl md:text-2xl text-blue-700">00:45</span>
+        </div>
+
+        <!-- 생명 (하트) -->
+        <div class="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-2xl border-2 border-orange-100">
+          <span id="hud-hearts" class="flex gap-0.5 text-xl">❤️ ❤️ ❤️</span>
+        </div>
+      </div>
+
+      <!-- 제어 버튼 그룹 -->
+      <div class="flex items-center gap-2">
+        <button id="btn-sound" class="w-10 h-10 bg-sky-100 hover:bg-sky-200 rounded-full flex items-center justify-center text-sky-600 border border-sky-200 transition-colors" aria-label="음향 켜기/끄기">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+        <button id="btn-pause" class="w-10 h-10 bg-yellow-100 hover:bg-yellow-200 rounded-full flex items-center justify-center text-yellow-700 border border-yellow-200 transition-colors" aria-label="게임 일시 정지">
+          <i class="fa-solid fa-pause"></i>
+        </button>
+        <button id="btn-exit" class="w-10 h-10 bg-pink-100 hover:bg-pink-200 rounded-full flex items-center justify-center text-pink-600 border border-pink-200 transition-colors" aria-label="메인 화면으로 나가기">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- 2. 스테이지 조작 헤더 (테스트 및 스테이지 바로가기) -->
+    <div class="bg-white/80 rounded-2xl p-2 md:p-3 border-2 border-sky-200 flex flex-wrap items-center justify-between gap-2 shadow-sm text-sm w-full">
+      <div class="font-extrabold text-blue-800 flex items-center gap-1.5">
+        <span>📍 레벨 선택:</span>
+      </div>
+      <div class="flex items-center gap-1.5 flex-wrap" id="stage-selectors">
+        <!-- 버튼 스크립트에서 동적 렌더링 -->
+      </div>
+      <button id="btn-toggle-config" class="text-xs bg-slate-200 hover:bg-slate-300 font-bold px-2 py-1.5 rounded-lg text-slate-700 transition-colors">
+        ⚙️ 고급설정
+      </button>
+    </div>
+
+    <!-- 3. 본문 풀 와이드 레이아웃 (좌우 사이드바를 완전히 제거하고 꽉 찬 화면) -->
+    <div class="flex-1 flex flex-col gap-4 items-stretch w-full">
+      
+      <!-- [중앙 AR 게임 영역 - w-full 및 min-h를 화면 가득 채우도록 스케일링] -->
+      <section class="flex-1 flex flex-col gap-2 min-h-[600px] relative w-full">
+        <div id="game-stage-container" class="flex-1 w-full bg-slate-900 rounded-3xl border-4 border-white shadow-xl relative overflow-hidden">
+          
+          <!-- AR 복싱 중앙 핵심 돔구조 -->
+          <video id="webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover mirror z-0 opacity-85"></video>
+          <canvas id="ar-canvas" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></canvas>
+          
+          <!-- 2인용 대결 모드용 중앙 분할선 -->
+          <div id="duel-divider" class="absolute top-0 bottom-0 left-1/2 w-2 bg-yellow-400 shadow-lg z-20 -translate-x-1/2 hidden"></div>
+
+          <!-- AR 목표물 레이어 -->
+          <div id="target-layer" class="absolute inset-0 z-20 pointer-events-none"></div>
+
+          <!-- AR 애니메이션/파티클 이펙트 레이어 -->
+          <div id="effect-layer" class="absolute inset-0 z-30 pointer-events-none overflow-hidden"></div>
+
+          <!-- 카메라 미지원 안내 문구 -->
+          <div id="camera-status-msg" class="absolute top-4 left-4 z-30 bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+            <span id="camera-status-text">웹캠 연결 안 됨 (체험 모드 가능)</span>
+          </div>
+
+          <!-- 상반신 감지 안 될 때 경고 문구 -->
+          <div id="pose-warning-msg" class="hidden absolute inset-x-4 top-16 z-30 bg-yellow-400/90 text-slate-900 border-2 border-yellow-500 text-center font-bold px-4 py-2.5 rounded-2xl shadow-lg">
+            ⚠️ 화면 안에 상반신(머리, 양 어깨, 팔)이 다 보이도록 뒤로 한 걸음 물러서 주세요!
+          </div>
+
+          <!-- 별빛 타임 전용 오버레이 이펙트 -->
+          <div id="starlight-overlay" class="absolute inset-0 bg-yellow-300/10 border-8 border-transparent pointer-events-none z-20 hidden transition-all duration-300"></div>
+          <div id="starlight-badge" class="absolute top-4 right-4 z-30 bg-gradient-to-r from-yellow-400 to-amber-500 text-blue-950 font-black text-lg px-4 py-1.5 rounded-full border-2 border-white shadow-lg hidden">
+            ✨ 별빛 타임! ✨
+          </div>
+
+          <!-- 로딩 스피너 (카메라 준비 중) -->
+          <div id="stage-spinner" class="absolute inset-0 z-30 bg-slate-950/80 flex flex-col items-center justify-center text-white hidden">
+            <div class="w-16 h-16 border-4 border-sky-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-xl font-bold">인식 인공지능 모델을 불러오는 중...</p>
+          </div>
+        </div>
+
+        <!-- 하단 레벨 진행도 및 경험치 바 & 스페셜 게이지 통합 -->
+        <div class="bg-white/95 rounded-2xl p-3 border-2 border-sky-200 flex flex-col gap-2 shadow-sm text-sm w-full">
+          <!-- 레벨 진행도 -->
+          <div class="flex items-center justify-between gap-4 w-full">
+            <div class="flex items-center gap-2 min-w-[120px]">
+              <span class="text-2xl">🏆</span>
+              <span class="font-extrabold text-blue-900">클리어 달성률</span>
+            </div>
+            <div class="flex-1 bg-slate-100 h-3 rounded-full overflow-hidden relative">
+              <div id="level-progress-bar" class="bg-gradient-to-r from-yellow-400 to-pink-500 h-full rounded-full transition-all duration-500" style="width: 20%"></div>
+            </div>
+            <div class="font-bold text-slate-600 min-w-[50px] text-right" id="level-progress-txt">1 / 5</div>
+          </div>
+          
+          <!-- 스페셜 게이지 -->
+          <div class="flex items-center justify-between gap-4 w-full border-t border-sky-100 pt-2">
+            <div class="flex items-center gap-2 min-w-[120px]">
+              <span class="text-xl">⚡</span>
+              <span class="font-extrabold text-blue-900">스페셜 게이지</span>
+            </div>
+            <div class="flex-1 bg-slate-100 h-3 rounded-full overflow-hidden p-[1px] border border-slate-200 relative">
+              <div id="special-gauge-bar" class="bg-gradient-to-r from-yellow-400 to-amber-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="font-bold text-blue-700 min-w-[50px] text-right" id="special-gauge-percent">0%</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== [개발 및 테스트용 설정 패널] ==================== -->
+  <div id="config-panel" class="fixed right-4 bottom-4 z-40 bg-white/95 rounded-2xl p-4 border-2 border-sky-300 shadow-2xl max-w-sm w-full hidden text-sm font-medium">
+    <div class="flex justify-between items-center mb-3 pb-2 border-b">
+      <h3 class="font-bold text-slate-800 flex items-center gap-1">⚙️ 고급 게임 설정</h3>
+      <button id="btn-close-config" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">펀치 민감도 (임계속도)</label>
+        <input type="range" id="config-sens" min="0.005" max="0.04" step="0.001" class="w-full">
+        <div class="flex justify-between text-xs text-slate-400"><span id="config-sens-txt">0.018</span><span>예민함 ↔ 둔함</span></div>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">목표물 기본 크기 (픽셀)</label>
+        <input type="range" id="config-target-size" min="60" max="180" step="5" class="w-full">
+        <div class="flex justify-between text-xs text-slate-400"><span id="config-target-size-txt">110px</span></div>
+      </div>
+      <div class="flex justify-between items-center">
+        <span>디버그 포즈 선 표시</span>
+        <input type="checkbox" id="config-debug-pose" class="w-4 h-4 rounded text-blue-600">
+      </div>
+      <div class="flex justify-between items-center">
+        <span>카메라 좌우 반전(거울 모드)</span>
+        <input type="checkbox" id="config-mirror" class="w-4 h-4 rounded text-blue-600" checked>
+      </div>
+      <div class="flex justify-between items-center">
+        <span>테스트용 마우스 터치 판정 허용</span>
+        <input type="checkbox" id="config-touch-override" class="w-4 h-4 rounded text-blue-600" checked>
+      </div>
+      <button id="btn-reset-best" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-1.5 rounded-lg border text-xs transition-colors">
+        🏆 최고기록 초기화
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== [일시정지 화면] ==================== -->
+  <div id="pause-screen" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-md hidden flex-col items-center justify-center text-white select-none">
+    <div class="bg-white text-slate-800 rounded-3xl p-8 max-w-sm w-full text-center border-4 border-yellow-300 shadow-2xl space-y-6">
+      <h2 class="text-4xl text-yellow-500 font-extrabold">잠시 쉬는 시간!</h2>
+      <p class="text-base text-slate-500">일시정지 상태입니다. 다시 주먹을 뻗어볼까요?</p>
+      
+      <div class="space-y-3">
+        <button id="btn-resume" class="w-full bg-yellow-400 hover:bg-yellow-300 text-blue-900 font-extrabold text-xl py-3 rounded-2xl shadow-[0_4px_0_#d97706] transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> 계속 하기
+        </button>
+        <button id="btn-restart-stage" class="w-full bg-sky-500 hover:bg-sky-400 text-white font-extrabold text-xl py-3 rounded-2xl shadow-[0_4px_0_#0284c7] transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-rotate-left"></i> 처음부터 다시
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [결과 화면 모달] ==================== -->
+  <div id="result-screen" class="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm hidden flex-col items-center justify-center text-white select-none overflow-y-auto p-4">
+    <div class="bg-white text-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full border-4 border-sky-400 shadow-2xl relative">
+      
+      <!-- 성공 별 획득 그래픽 -->
+      <div class="flex justify-center gap-2 -mt-16 mb-4">
+        <span id="star-icon-1" class="text-5xl drop-shadow-md">⭐</span>
+        <span id="star-icon-2" class="text-6.5xl drop-shadow-md -translate-y-3">⭐</span>
+        <span id="star-icon-3" class="text-5xl drop-shadow-md">⭐</span>
+      </div>
+
+      <h2 id="result-title" class="text-3xl text-center text-sky-600 font-black mb-1">참 잘했어요!</h2>
+      <p id="result-coach-msg" class="text-center text-sm text-pink-500 font-bold mb-6">"대단해요! 최고의 복싱 리듬스타!"</p>
+
+      <!-- 점수 카드 -->
+      <div class="bg-sky-50 rounded-2xl p-4 border border-sky-100 space-y-3 mb-6">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-500 text-sm">최종 획득 점수</span>
+          <span id="result-score" class="font-extrabold text-2xl text-blue-600">0점</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-slate-500 text-sm">최고 콤보</span>
+          <span id="result-max-combo" class="font-extrabold text-xl text-pink-500">0 COMBO</span>
+        </div>
+        <hr class="border-sky-150">
+        <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
+          <div>왼손 펀치: <strong id="result-left-cnt" class="text-red-500">0회</strong></div>
+          <div>오른손 펀치: <strong id="result-right-cnt" class="text-blue-500">0회</strong></div>
+          <div>정확도(명중률): <strong id="result-accuracy">0%</strong></div>
+          <div>가드 복귀: <strong id="result-guard-cnt" class="text-yellow-600">0회</strong></div>
+        </div>
+      </div>
+
+      <!-- 완수한 미션 요약 -->
+      <div class="space-y-2 mb-6">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">클리어 미션</p>
+        <div id="result-completed-missions" class="space-y-1 text-sm text-slate-700">
+          <!-- 미션 클리어 정보 동적 추가 -->
+        </div>
+      </div>
+
+      <!-- 최고 점수 축하 배치 -->
+      <div id="result-highscore-badge" class="hidden text-center bg-yellow-100 text-yellow-800 border border-yellow-200 rounded-xl py-1.5 text-xs font-bold mb-6">
+        🎉 최고 신기록을 경신했어요! 🎉
+      </div>
+
+      <!-- 제어 버튼들 -->
+      <div class="flex flex-col gap-2">
+        <button id="btn-next-stage" class="w-full bg-yellow-400 hover:bg-yellow-300 text-blue-900 font-extrabold text-xl py-4 rounded-2xl shadow-[0_5px_0_#d97706] hover:translate-y-[2px] transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-circle-arrow-right"></i> 다음 스테이지 가기
+        </button>
+        <div class="flex gap-2">
+          <button id="btn-retry-stage" class="flex-1 bg-sky-500 hover:bg-sky-400 text-white font-bold py-3 rounded-xl transition-colors">
+            다시 도전
+          </button>
+          <button id="btn-result-exit" class="flex-1 bg-slate-200 hover:bg-slate-350 text-slate-700 font-bold py-3 rounded-xl transition-colors">
+            처음으로
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== [JAVASCRIPT GAME SYSTEM] ==================== -->
+  <script>
+    // ==================== CONFIG & STATE ====================
+    const CONFIG = {
+      stageDuration: 45,
+      maxLives: 3,
+      poseFps: 20, // 20~30FPS 제한으로 성능 안정화
+      punchCooldown: 280,
+      punchVelocityThreshold: 0.018,
+      punchExtensionThreshold: 1.12,
+      targetBaseSize: 110,
+      soundVolume: 0.15,
+      debugPose: false,
+      mirrorCamera: true,
+      touchOverride: true
+    };
+
+    // 스테이지 데이터 정의
+    const stages = [
+      {
+        level: 1,
+        duration: 45,
+        spawnInterval: 1800,
+        maxTargets: 1,
+        targetTypes: ["star", "cloud"],
+        speedMultiplier: 0.2,
+        requiredHands: ["any"],
+        mission: "화면에 나타나는 목표물을 맞혀 보세요.",
+        title: "1단계: 펀치 시작! 🥊"
+      },
+      {
+        level: 2,
+        duration: 45,
+        spawnInterval: 1600,
+        maxTargets: 2,
+        targetTypes: ["star", "cloud", "balloon"],
+        speedMultiplier: 0.4,
+        requiredHands: ["any", "left", "right"],
+        mission: "왼손(빨강), 오른손(파랑) 테두리 구분을 연습해요.",
+        title: "2단계: 왼손과 오른손 👐"
+      },
+      {
+        level: 3,
+        duration: 45,
+        spawnInterval: 1400,
+        maxTargets: 2,
+        targetTypes: ["star", "cloud", "balloon", "jelly"],
+        speedMultiplier: 0.6,
+        requiredHands: ["any", "left", "right"],
+        mission: "움직이는 목표물을 맞히고 콤보를 쌓아 보세요.",
+        title: "3단계: 콤보 도전! 🔥"
+      },
+      {
+        level: 4,
+        duration: 45,
+        spawnInterval: 1200,
+        maxTargets: 3,
+        targetTypes: ["star", "cloud", "balloon", "jelly", "droplet", "sun"],
+        speedMultiplier: 0.8,
+        requiredHands: ["any", "left", "right", "both"],
+        mission: "가끔 나타나는 보라색(양손) 목표물에 신속히 반응하세요.",
+        title: "4단계: 빠른 반응 번개 ⚡"
+      },
+      {
+        level: 5,
+        duration: 45,
+        spawnInterval: 1000,
+        maxTargets: 4,
+        targetTypes: ["star", "cloud", "balloon", "jelly", "droplet", "sun", "spaceball", "rainbowshield"],
+        speedMultiplier: 1.1,
+        requiredHands: ["any", "left", "right", "both"],
+        mission: "복잡한 손 패턴 조합을 완성하여 챔피언에 등극해요!",
+        title: "5단계: 별빛 챔피언 🌟"
+      }
+    ];
+
+    // 목표물 상세 메타데이터 (SVG 드로잉 데이터와 매핑)
+    const TARGET_METADATA = {
+      star: { name: "노란 별", score: 100, color: "#fbbf24", phrase: "반짝 성공!" },
+      cloud: { name: "웃는 구름", score: 50, color: "#e2e8f0", phrase: "구름 펀치!" },
+      balloon: { name: "분홍 풍선", score: 70, color: "#ec4899", phrase: "풍선 펑!" },
+      jelly: { name: "초록 젤리", score: 80, color: "#10b981", phrase: "말랑 펀치!" },
+      droplet: { name: "파란 물방울", score: 60, color: "#3b82f6", phrase: "출렁 터치!" },
+      sun: { name: "주황 해님", score: 90, color: "#f97316", phrase: "햇살 펀치!" },
+      spaceball: { name: "보라 우주공", score: 120, color: "#8b5cf6", phrase: "우주 대폭발!" },
+      rainbowshield: { name: "무지개 방패", score: 150, color: "#a855f7", phrase: "무지개 피버!" }
+    };
+
+     // 게임 상태 객체
+    let state = {
+      isTouchMode: false, // 마우스/터치 대체모드
+      gameMode: "single", // "single" 또는 "duel"
+      level: 1,
+      score: 0, // 1인용 점수
+      combo: 0,
+      maxCombo: 0,
+      p1Score: 0, // 2인용 Red (주호/서호 왼쪽)
+      p2Score: 0, // 2인용 Blue (주호/서호 오른쪽)
+      p1Combo: 0,
+      p2Combo: 0,
+      p1HitStreak: 0,
+      p2HitStreak: 0,
+      lives: 3,
+      timeLeft: 45,
+      isPaused: false,
+      isPlaying: false,
+      specialGauge: 0,
+      isSpecialMode: false,
+      specialTimer: null,
+      punchStats: {
+        leftCount: 0,
+        rightCount: 0,
+        hitAttempts: 0,
+        totalAttempts: 0,
+        guardReturnCount: 0
+      },
+      missions: [],
+      targets: [],
+      lastPunchTime: { left: 0, right: 0 },
+      isGuarding: false,
+      guardCooldown: false,
+      poseModelLoaded: false
+    };
+
+    // 오디오 관련 전역 변수
+    let audioCtx = null;
+    let mainGainNode = null;
+    let isSoundOn = true;
+
+    // 미디어파이프 관련 전역 변수
+    let poseLandmarker = null;
+    let faceDetector = null;
+    let requestAnimationId = null;
+    let webcamStream = null;
+    let lastVideoTime = -1;
+    let detectedFaces = [];
+
+    // 펀치 알고리즘을 위한 관절 궤적 저장소
+    let prevLandmarks = null;
+
+    // 화면 크기 캐싱
+    let stageWidth = 640;
+    let stageHeight = 480;
+
+    // 코치 멘트 리스트
+    const COACH_PHRASES = [
+      "좋아! 리듬을 타 보자!",
+      "멋진 펀치야!",
+      "이번엔 왼손이다!",
+      "오른손 쭉!",
+      "양손을 다시 가드 위치로!",
+      "조금만 더 빠르게!",
+      "정확하게 맞혔어!",
+      "어린이 챔피언 파이팅!"
+    ];
+
+    // ==================== DOM ELEMENTS ====================
+    const el = {
+      introScreen: document.getElementById("intro-screen"),
+      countdownOverlay: document.getElementById("countdown-overlay"),
+      countdownText: document.getElementById("countdown-text"),
+      countdownSub: document.getElementById("countdown-sub"),
+      hudScore: document.getElementById("hud-score"),
+      hudCombo: document.getElementById("hud-combo"),
+      hudTimer: document.getElementById("hud-timer"),
+      hudHearts: document.getElementById("hud-hearts"),
+      btnSound: document.getElementById("btn-sound"),
+      btnPause: document.getElementById("btn-pause"),
+      btnExit: document.getElementById("btn-exit"),
+      video: document.getElementById("webcam-video"),
+      canvas: document.getElementById("ar-canvas"),
+      ctx: document.getElementById("ar-canvas").getContext("2d"),
+      targetLayer: document.getElementById("target-layer"),
+      effectLayer: document.getElementById("effect-layer"),
+      starlightOverlay: document.getElementById("starlight-overlay"),
+      starlightBadge: document.getElementById("starlight-badge"),
+      specialGaugeBar: document.getElementById("special-gauge-bar"),
+      specialGaugePercent: document.getElementById("special-gauge-percent"),
+      missionsList: document.getElementById("missions-list"),
+      coachMessage: document.getElementById("coach-message"),
+      stageSelectors: document.getElementById("stage-selectors"),
+      levelProgressBar: document.getElementById("level-progress-bar"),
+      levelProgressTxt: document.getElementById("level-progress-txt"),
+      pauseScreen: document.getElementById("pause-screen"),
+      btnResume: document.getElementById("btn-resume"),
+      btnRestartStage: document.getElementById("btn-restart-stage"),
+      resultScreen: document.getElementById("result-screen"),
+      resultTitle: document.getElementById("result-title"),
+      resultCoachMsg: document.getElementById("result-coach-msg"),
+      resultScore: document.getElementById("result-score"),
+      resultMaxCombo: document.getElementById("result-max-combo"),
+      resultLeftCnt: document.getElementById("result-left-cnt"),
+      resultRightCnt: document.getElementById("result-right-cnt"),
+      resultAccuracy: document.getElementById("result-accuracy"),
+      resultGuardCnt: document.getElementById("result-guard-cnt"),
+      resultCompletedMissions: document.getElementById("result-completed-missions"),
+      resultHighscoreBadge: document.getElementById("result-highscore-badge"),
+      btnNextStage: document.getElementById("btn-next-stage"),
+      btnRetryStage: document.getElementById("btn-retry-stage"),
+      btnResultExit: document.getElementById("btn-result-exit"),
+      badgeTouchMode: document.getElementById("badge-touch-mode"),
+      cameraStatusText: document.getElementById("camera-status-text"),
+      poseWarningMsg: document.getElementById("pose-warning-msg"),
+      stageSpinner: document.getElementById("stage-spinner"),
+      configPanel: document.getElementById("config-panel"),
+      btnToggleConfig: document.getElementById("btn-toggle-config"),
+      btnCloseConfig: document.getElementById("btn-close-config"),
+      configSens: document.getElementById("config-sens"),
+      configSensTxt: document.getElementById("config-sens-txt"),
+      configTargetSize: document.getElementById("config-target-size"),
+      configTargetSizeTxt: document.getElementById("config-target-size-txt"),
+      configDebugPose: document.getElementById("config-debug-pose"),
+      configMirror: document.getElementById("config-mirror"),
+      configTouchOverride: document.getElementById("config-touch-override"),
+      btnResetBest: document.getElementById("btn-reset-best"),
+      btnStartCamera: document.getElementById("btn-start-camera"),
+      btnStartTouch: document.getElementById("btn-start-touch"),
+      btnRetryCamera: document.getElementById("btn-retry-camera"),
+      btnFallbackTouch: document.getElementById("btn-fallback-touch"),
+      introActionArea: document.getElementById("intro-action-area"),
+      introLoading: document.getElementById("intro-loading"),
+      introError: document.getElementById("intro-error"),
+      loadingStatusText: document.getElementById("loading-status-text"),
+      loadingBar: document.getElementById("loading-bar"),
+      loadingPercentage: document.getElementById("loading-percentage"),
+      starIcon1: document.getElementById("star-icon-1"),
+      starIcon2: document.getElementById("star-icon-2"),
+      starIcon3: document.getElementById("star-icon-3")
+    };
+
+    // ==================== INITIALIZATION & AUDIO SYSTEM ====================
+
+    // 소리 설정 불러오기
+    if (localStorage.getItem("arBoxing_sound") !== null) {
+      isSoundOn = localStorage.getItem("arBoxing_sound") === "true";
+      updateSoundButtonUI();
+    }
+
+    // Web Audio API 초기화
+    function initAudio() {
+      if (audioCtx) return;
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+        mainGainNode = audioCtx.createGain();
+        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.soundVolume : 0, audioCtx.currentTime);
+        mainGainNode.connect(audioCtx.destination);
+      } catch (e) {
+        console.error("AudioContext 초기화 오류:", e);
+      }
+    }
+
+    // 신디사이저 효과음 합성 함수
+    function playSynthSound(type) {
+      if (!audioCtx || !isSoundOn) return;
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      const t = audioCtx.currentTime;
+      
+      switch (type) {
+        case "countdown": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(440, t); // 라 음
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.15);
+          break;
+        }
+        case "countdown_start": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, t);
+          gain.gain.setValueAtTime(0.4, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.3);
+          break;
+        }
+        case "spawn": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(300, t);
+          osc.frequency.exponentialRampToValueAtTime(600, t + 0.15);
+          gain.gain.setValueAtTime(0.15, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.15);
+          break;
+        }
+        case "hit_left": {
+          // 왼손 펀치: 낮고 통통 튀는 음
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(330, t); // 미
+          osc.frequency.linearRampToValueAtTime(520, t + 0.12);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.15);
+          break;
+        }
+        case "hit_right": {
+          // 오른손 펀치: 높고 통통 튀는 음
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(392, t); // 솔
+          osc.frequency.linearRampToValueAtTime(660, t + 0.12);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.15);
+          break;
+        }
+        case "combo": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(523.25 + (state.combo * 10), t); // 도
+          gain.gain.setValueAtTime(0.25, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.2);
+          break;
+        }
+        case "miss": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(180, t);
+          osc.frequency.linearRampToValueAtTime(90, t + 0.3);
+          gain.gain.setValueAtTime(0.2, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.3);
+          break;
+        }
+        case "special_charge": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(261.63, t);
+          osc.frequency.exponentialRampToValueAtTime(1046.50, t + 0.4);
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.4);
+          break;
+        }
+        case "special_start": {
+          // 별빛 타임 시작: 화려한 아르페지오 느낌
+          [0, 0.1, 0.2, 0.3].forEach((delay, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const freqs = [523.25, 659.25, 783.99, 1046.50];
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freqs[idx], t + delay);
+            gain.gain.setValueAtTime(0.2, t + delay);
+            gain.gain.exponentialRampToValueAtTime(0.005, t + delay + 0.25);
+            osc.connect(gain);
+            gain.connect(mainGainNode);
+            osc.start(t + delay);
+            osc.stop(t + delay + 0.25);
+          });
+          break;
+        }
+        case "stage_clear": {
+          // 스테이지 클리어 축배
+          const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, t + idx * 0.1);
+            gain.gain.setValueAtTime(0.2, t + idx * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + idx * 0.1 + 0.4);
+            osc.connect(gain);
+            gain.connect(mainGainNode);
+            osc.start(t + idx * 0.1);
+            osc.stop(t + idx * 0.1 + 0.4);
+          });
+          break;
+        }
+        case "game_over": {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(150, t);
+          osc.frequency.linearRampToValueAtTime(50, t + 0.6);
+          gain.gain.setValueAtTime(0.3, t);
+          gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+          osc.connect(gain);
+          gain.connect(mainGainNode);
+          osc.start(t);
+          osc.stop(t + 0.6);
+          break;
+        }
+      }
+    }
+
+    function toggleSound() {
+      isSoundOn = !isSoundOn;
+      localStorage.setItem("arBoxing_sound", isSoundOn);
+      updateSoundButtonUI();
+      if (mainGainNode && audioCtx) {
+        mainGainNode.gain.setValueAtTime(isSoundOn ? CONFIG.soundVolume : 0, audioCtx.currentTime);
+      }
+    }
+
+    function updateSoundButtonUI() {
+      if (isSoundOn) {
+        el.btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i>`;
+        el.btnSound.className = "w-10 h-10 bg-sky-100 hover:bg-sky-200 rounded-full flex items-center justify-center text-sky-600 border border-sky-200 transition-colors";
+      } else {
+        el.btnSound.innerHTML = `<i class="fa-solid fa-volume-xmark"></i>`;
+        el.btnSound.className = "w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 border border-slate-200 transition-colors";
+      }
+    }
+
+    // ==================== MEDIAPIPE WEB CAM & MODEL ====================
+    async function loadPoseModel() {
+      if (state.poseModelLoaded) return;
+      
+      el.introActionArea.classList.add("hidden");
+      el.introLoading.classList.remove("hidden");
+      updateLoadingStatus("인공지능 비전 도구 준비 중...", 30);
+
+      try {
+        updateLoadingStatus("모션 엔진 파싱 중...", 50);
+        
+        // window.Hands는 @mediapipe/hands/hands.js 로드 시 생성됩니다.
+        if (!window.Hands) {
+          throw new Error("MediaPipe Hands 라이브러리가 로드되지 않았습니다.");
+        }
+
+        poseLandmarker = new window.Hands({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        poseLandmarker.setOptions({
+          maxNumHands: 2,
+          modelComplexity: 1,
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5
+        });
+
+        poseLandmarker.onResults(onHandResults);
+
+        updateLoadingStatus("얼굴 인식 엔진 준비 중...", 80);
+
+        if (!window.FaceDetection) {
+          throw new Error("MediaPipe Face Detection 라이브러리가 로드되지 않았습니다.");
+        }
+
+        faceDetector = new window.FaceDetection({
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`
+        });
+
+        faceDetector.setOptions({
+          model: 'short',
+          minDetectionConfidence: 0.5
+        });
+
+        faceDetector.onResults(onFaceResults);
+
+        updateLoadingStatus("로딩이 완료되었습니다!", 100);
+        state.poseModelLoaded = true;
+        setTimeout(() => {
+          el.introScreen.classList.add("hidden");
+          startCountdown();
+        }, 600);
+
+      } catch (err) {
+        console.error("인공지능 모델 로드 실패. 대체 터치 모드로 전환합니다.", err);
+        switchToTouchFallback(err);
+      }
+    }
+
+    function onFaceResults(results) {
+      detectedFaces = [];
+      if (results && results.detections && results.detections.length > 0) {
+        for (const detection of results.detections) {
+          const boundingBox = detection.boundingBox;
+          if (!boundingBox) continue;
+          
+          const w = boundingBox.width * stageWidth;
+          const h = boundingBox.height * stageHeight;
+          const cx = boundingBox.xCenter;
+          const cy = boundingBox.yCenter;
+          
+          // 거울 모드 대응
+          const screenX = (1 - cx) * stageWidth;
+          const screenY = cy * stageHeight;
+          
+          detectedFaces.push({
+            x: screenX,
+            y: screenY,
+            width: w,
+            height: h
+          });
+        }
+      }
+    }
+
+    function updateLoadingStatus(text, percentage) {
+      el.loadingStatusText.textContent = text;
+      el.loadingPercentage.textContent = `${percentage}%`;
+      el.loadingBar.style.width = `${percentage}%`;
+    }
+
+    function switchToTouchFallback(err = null) {
+      state.isTouchMode = true;
+      state.poseModelLoaded = false;
+      el.badgeTouchMode.classList.remove("hidden");
+      el.cameraStatusText.textContent = "웹캠 꺼짐 (체험 마우스/터치 작동)";
+      el.cameraStatusText.parentElement.classList.replace("bg-black/60", "bg-orange-500/80");
+
+      if (err) {
+        el.introLoading.classList.add("hidden");
+        el.introError.classList.remove("hidden");
+      } else {
+        el.introScreen.classList.add("hidden");
+        startCountdown();
+      }
+    }
+
+    async function initCamera() {
+      if (state.isTouchMode) return;
+      try {
+        const constraints = {
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+          },
+          audio: false
+        };
+        webcamStream = await navigator.mediaDevices.getUserMedia(constraints);
+        el.video.srcObject = webcamStream;
+        el.video.addEventListener("loadedmetadata", resizeCanvas);
+        
+        el.cameraStatusText.textContent = "카메라 연결됨";
+        el.cameraStatusText.parentElement.querySelector("span").classList.replace("bg-red-500", "bg-green-500");
+      } catch (error) {
+        console.error("카메라 스트림 열기 실패:", error);
+        throw error;
+      }
+    }
+
+    function stopCamera() {
+      if (window.cameraHelper) {
+        window.cameraHelper.stop();
+        window.cameraHelper = null;
+      }
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = null;
+      }
+      if (el.video) {
+        el.video.srcObject = null;
+      }
+    }
+
+    // ==================== RENDERING / RESIZING COORDINATES ====================
+    function resizeCanvas() {
+      // 비디오 크기를 기준으로 설정
+      const w = el.video.videoWidth || 640;
+      const h = el.video.videoHeight || 480;
+      
+      stageWidth = w;
+      stageHeight = h;
+
+      el.canvas.width = w;
+      el.canvas.height = h;
+    }
+
+    // ==================== GAME CORE FLOW ====================
+    function startCountdown() {
+      initAudio();
+      el.countdownOverlay.classList.remove("flex");
+      el.countdownOverlay.classList.add("hidden");
+      el.countdownOverlay.classList.replace("hidden", "flex");
+
+      let count = 3;
+      el.countdownText.textContent = count;
+      el.countdownText.style.transform = "scale(1.2)";
+      playSynthSound("countdown");
+
+      const interval = setInterval(() => {
+        count--;
+        if (count > 0) {
+          el.countdownText.textContent = count;
+          playSynthSound("countdown");
+        } else if (count === 0) {
+          el.countdownText.textContent = "시작!";
+          el.countdownSub.textContent = "신나게 주먹을 뻗으세요!";
+          playSynthSound("countdown_start");
+        } else {
+          clearInterval(interval);
+          el.countdownOverlay.classList.replace("flex", "hidden");
+          startStage(state.level);
+        }
+      }, 1000);
+    }
+
+    function startStage(level) {
+      state.level = level;
+      state.score = 0;
+      state.combo = 0;
+      state.maxCombo = 0;
+      state.p1Score = 0;
+      state.p2Score = 0;
+      state.p1Combo = 0;
+      state.p2Combo = 0;
+      state.p1HitStreak = 0;
+      state.p2HitStreak = 0;
+      state.lives = CONFIG.maxLives;
+      state.timeLeft = CONFIG.stageDuration;
+      state.isPlaying = true;
+      state.isPaused = false;
+      state.specialGauge = 0;
+      state.isSpecialMode = false;
+      
+      // 분할선 및 얼굴 이펙트 엘리먼트 가시성 토글
+      const divider = document.getElementById("duel-divider");
+      
+      if (state.gameMode === "duel") {
+        if (divider) divider.classList.remove("hidden");
+      } else {
+        if (divider) divider.classList.add("hidden");
+      }
+      
+      // 멍/반창고 캔버스 렌더링 상태 초기화
+      faceEffects.p1.show = false;
+      faceEffects.p2.show = false;
+      if (faceEffects.p1.timer) clearTimeout(faceEffects.p1.timer);
+      if (faceEffects.p2.timer) clearTimeout(faceEffects.p2.timer);
+      
+      state.punchStats = {
+        leftCount: 0,
+        rightCount: 0,
+        hitAttempts: 0,
+        totalAttempts: 0,
+        guardReturnCount: 0
+      };
+
+      // 타겟, 파티클 지우기
+      state.targets = [];
+      el.targetLayer.innerHTML = "";
+      el.effectLayer.innerHTML = "";
+
+      // 미션 이니셜라이징
+      setupMissionsForLevel(level);
+
+      // UI 설정
+      updateHud();
+      updateGaugeUI();
+      highlightActiveStageSelector(level);
+      
+      // 모션 인식 시작
+      if (!state.isTouchMode && poseLandmarker) {
+        startPoseDetection();
+      }
+
+      // 오토 스폰 루프 타이머
+      if (window.spawnTimer) clearInterval(window.spawnTimer);
+      const stageConfig = stages[state.level - 1];
+      window.spawnTimer = setInterval(() => {
+        if (!state.isPaused && state.isPlaying) {
+          spawnTarget();
+        }
+      }, stageConfig.spawnInterval);
+
+      // 게임 타이머
+      if (window.gameTimer) clearInterval(window.gameTimer);
+      window.gameTimer = setInterval(() => {
+        if (!state.isPaused && state.isPlaying) {
+          state.timeLeft--;
+          if (state.timeLeft <= 0) {
+            endStage(true); // 시간 완료로 인한 스테이지 클리어
+          }
+          updateHud();
+        }
+      }, 1000);
+
+      // 코치 랜덤 안내 멘트 타이머
+      if (window.coachTimer) clearInterval(window.coachTimer);
+      window.coachTimer = setInterval(() => {
+        if (!state.isPaused && state.isPlaying) {
+          triggerCoachPhrase();
+        }
+      }, 8000);
+    }
+
+    function setupMissionsForLevel(level) {
+      const activeStage = stages[level - 1];
+      state.missions = [];
+
+      switch (level) {
+        case 1:
+          state.missions.push({ id: "hit_any", desc: "목표물 8개 맞히기", icon: "⭐", cur: 0, target: 8, done: false });
+          state.missions.push({ id: "max_combo", desc: "3콤보 달성", icon: "🔥", cur: 0, target: 3, done: false });
+          break;
+        case 2:
+          state.missions.push({ id: "hit_left", desc: "빨간 왼손 펀치 5회", icon: "🥊", cur: 0, target: 5, done: false });
+          state.missions.push({ id: "hit_right", desc: "파란 오른손 펀치 5회", icon: "🥊", cur: 0, target: 5, done: false });
+          break;
+        case 3:
+          state.missions.push({ id: "max_combo", desc: "8콤보 달성하기", icon: "🔥", cur: 0, target: 8, done: false });
+          state.missions.push({ id: "guard", desc: "가드 복귀 보너스 3회", icon: "🛡️", cur: 0, target: 3, done: false });
+          break;
+        case 4:
+          state.missions.push({ id: "hit_both", desc: "양손 보라색 타격 3회", icon: "💜", cur: 0, target: 3, done: false });
+          state.missions.push({ id: "accuracy", desc: "정확도 70% 이상 달성", icon: "🎯", cur: 0, target: 70, done: false, unit: "%" });
+          break;
+        case 5:
+          state.missions.push({ id: "score", desc: "최종 5000점 돌파", icon: "👑", cur: 0, target: 5000, done: false });
+          state.missions.push({ id: "max_combo", desc: "15콤보 달성하기", icon: "🔥", cur: 0, target: 15, done: false });
+          state.missions.push({ id: "guard", desc: "가드 복귀 보너스 5회", icon: "🛡️", cur: 0, target: 5, done: false });
+          break;
+      }
+      renderMissions();
+    }
+
+    function renderMissions() {
+      if (!el.missionsList) return;
+      el.missionsList.innerHTML = state.missions.map(m => {
+        const percent = Math.min(100, Math.floor((m.cur / m.target) * 100));
+        const checked = m.done ? '<span>⭐</span>' : `<span class="text-slate-200">☆</span>`;
+        const valStr = m.unit && m.unit === "%" ? `${m.cur}%` : `${m.cur}/${m.target}`;
+        return `
+          <div class="bg-slate-50 border border-slate-100 rounded-2xl p-3 shadow-sm flex flex-col gap-1.5 transition-all ${m.done ? 'bg-yellow-50/50 border-yellow-200' : ''}">
+            <div class="flex justify-between items-center text-sm">
+              <span class="font-extrabold flex items-center gap-1">
+                <span>${m.icon}</span> ${m.desc}
+              </span>
+              <span class="font-bold">${checked}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 bg-slate-200 h-3 rounded-full overflow-hidden">
+                <div class="bg-gradient-to-r from-sky-400 to-blue-500 h-full rounded-full transition-all duration-300" style="width: ${percent}%"></div>
+              </div>
+              <span class="text-xs font-bold text-slate-500 w-10 text-right">${valStr}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function triggerCoachPhrase() {
+      if (!el.coachMessage) return;
+      const idx = Math.floor(Math.random() * COACH_PHRASES.length);
+      el.coachMessage.textContent = COACH_PHRASES[idx];
+    }
+
+    function updateHud() {
+      if (state.gameMode === "duel") {
+        el.hudScore.innerHTML = `<span class="text-red-500">주호:${state.p1Score}</span> <span class="text-slate-400">vs</span> <span class="text-blue-500">서호:${state.p2Score}</span>`;
+        el.hudCombo.innerHTML = `<span class="text-red-500">${state.p1Combo}</span> | <span class="text-blue-500">${state.p2Combo}</span>`;
+      } else {
+        el.hudScore.textContent = state.score.toLocaleString();
+        el.hudCombo.textContent = state.combo;
+      }
+      
+      const min = String(Math.floor(state.timeLeft / 60)).padStart(2, "0");
+      const sec = String(state.timeLeft % 60).padStart(2, "0");
+      el.hudTimer.textContent = `${min}:${sec}`;
+
+      // 생명 하트 갱신
+      let heartsHtml = "";
+      for (let i = 0; i < CONFIG.maxLives; i++) {
+        if (i < state.lives) {
+          heartsHtml += `<span class="text-red-500 drop-shadow-sm">❤️</span>`;
+        } else {
+          heartsHtml += `<span class="text-slate-300 drop-shadow-sm">💔</span>`;
+        }
+      }
+      el.hudHearts.innerHTML = heartsHtml;
+    }
+
+    // ==================== MEDIAPIPE MOTION LOOP ====================
+    let trackedHands = [];
+
+    function startPoseDetection() {
+      if (window.cameraHelper) {
+        window.cameraHelper.stop();
+      }
+      
+      // CameraUtils Camera 객체를 활용해 비디오 스트림 프레임을 Hands와 FaceDetection 객체로 전송
+      window.cameraHelper = new window.Camera(el.video, {
+        onFrame: async () => {
+          if (!state.isPlaying || state.isPaused || state.isTouchMode) return;
+          try {
+            await poseLandmarker.send({ image: el.video });
+            if (faceDetector) {
+              await faceDetector.send({ image: el.video });
+            }
+          } catch (e) {
+            console.error("AI Model send error:", e);
+          }
+        },
+        width: 640,
+        height: 480
+      });
+      
+      window.cameraHelper.start();
+    }
+
+    // 멍/반창고 오버레이를 캔버스에 직접 그리기 위한 상태 데이터 추가
+    let faceEffects = {
+      p1: { show: false, timer: null }, // Red (좌측)
+      p2: { show: false, timer: null }  // Blue (우측)
+    };
+
+    function onHandResults(results) {
+      if (!state.isPlaying || state.isPaused || state.isTouchMode) return;
+      
+      el.ctx.clearRect(0, 0, stageWidth, stageHeight);
+      
+      // 2인용 분할 화면 중앙선 그리기
+      if (state.gameMode === "duel") {
+        el.ctx.strokeStyle = "#eab308"; // yellow-500
+        el.ctx.lineWidth = 6;
+        el.ctx.beginPath();
+        el.ctx.moveTo(stageWidth / 2, 0);
+        el.ctx.lineTo(stageWidth / 2, stageHeight);
+        el.ctx.stroke();
+      }
+      
+      // 얼굴 멍/반창고 직접 캔버스 그리기 (상대방 위치에 오버레이)
+      drawFaceInjuries();
+      
+      if (!results || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+        el.poseWarningMsg.classList.remove("hidden");
+        trackedHands = [];
+        return;
+      }
+      el.poseWarningMsg.classList.add("hidden");
+
+      trackedHands = [];
+      
+      for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+        const landmarks = results.multiHandLandmarks[i];
+        
+        // wrist(0), index_mcp(5), pinky_mcp(17)의 평균 좌표로 중심 펀치 위치 계산
+        const wrist = landmarks[0];
+        const indexMcp = landmarks[5];
+        const pinkyMcp = landmarks[17];
+        
+        const cx = (wrist.x + indexMcp.x + pinkyMcp.x) / 3;
+        const cy = (wrist.y + indexMcp.y + pinkyMcp.y) / 3;
+
+        // 거울 모드에 맞게 X 좌표 미러링
+        const screenX = (1 - cx) * stageWidth;
+        const screenY = cy * stageHeight;
+
+        const handLabel = results.multiHandedness[i] ? results.multiHandedness[i].label.toLowerCase() : "right";
+        // 미디어파이프는 카메라 기준 좌우를 반환하므로 유저 거울모드 기준에 맞춰 스왑
+        const actualHand = handLabel === "left" ? "right" : "left";
+
+        trackedHands.push({
+          x: screenX,
+          y: screenY,
+          hand: actualHand,
+          landmarks
+        });
+
+        // 주먹의 위치에 글러브 그리기
+        drawGlove(screenX, screenY);
+
+        // 손목 위치를 펀치 지점으로 전달하여 충돌 검사 실행
+        state.punchStats.totalAttempts++;
+        checkTargetCollision(screenX, screenY, actualHand);
+      }
+    }
+
+    function drawFaceInjuries() {
+      const ctx = el.ctx;
+      if (detectedFaces.length === 0) return;
+
+      const isDuel = state.gameMode === "duel";
+
+      for (const face of detectedFaces) {
+        // 화면 중간선 기준 좌/우 플레이어 구분
+        const isLeft = face.x < stageWidth / 2;
+        const playerKey = isLeft ? "p1" : "p2";
+
+        let showBruise = false;
+        let showBandage = false;
+
+        if (isDuel) {
+          // 대결 모드: P1/P2 타격 횟수에 따른 트리거 상태에 의존
+          if (faceEffects[playerKey].show) {
+            const streak = playerKey === "p1" ? state.p2HitStreak : state.p1HitStreak;
+            showBruise = true;
+            if (streak >= 8) {
+              showBandage = true;
+            }
+          }
+        } else {
+          // 1인용 모드: 남은 라이프 수량에 따라 멍/반창고 표시
+          // 라이프가 2개 이하이면 멍, 1개 이하이면 멍+반창고
+          if (state.lives === 2) {
+            showBruise = true;
+          } else if (state.lives === 1) {
+            showBruise = true;
+            showBandage = true;
+          }
+        }
+
+        // 멍 그리기 (얼굴 크기 face.width 에 비례하여 크기 조절)
+        if (showBruise) {
+          const radius = Math.min(face.width, face.height) * 0.22;
+          ctx.save();
+          // 남색 동그라미에 투명도를 살짝 부여 (사용자 피드백 반영: 남색 동그라미 투명도)
+          ctx.fillStyle = "rgba(10, 25, 90, 0.4)"; // 살짝 투명한 남색
+          ctx.beginPath();
+          // 보통 눈밑/뺨 부위에 멍이 생기므로 중심 좌표에서 살짝 아래-좌측으로 오프셋
+          ctx.arc(face.x - radius * 0.5, face.y + radius * 0.1, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 반창고 그리기
+        if (showBandage) {
+          const radius = Math.min(face.width, face.height) * 0.22;
+          ctx.save();
+          // 뺨의 우측 상단 쪽에 반창고 부착
+          ctx.translate(face.x + radius * 0.6, face.y + radius * 0.3);
+          ctx.rotate(-Math.PI / 10); // 살짝 비스듬히
+          
+          const rectW = radius * 1.6;
+          const rectH = radius * 0.55;
+          ctx.fillStyle = "rgba(224, 185, 120, 0.9)"; // 살색
+          ctx.strokeStyle = "rgba(180, 140, 80, 0.9)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(-rectW / 2, -rectH / 2, rectW, rectH, 4) : ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+          ctx.fill();
+          ctx.stroke();
+
+          // 반창고 중앙 격자 무늬
+          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+          ctx.fillRect(-rectW * 0.18, -rectH / 2, rectW * 0.36, rectH);
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawGlove(x, y) {
+      const ctx = el.ctx;
+      
+      // 1인용이면 빨간색, 2인용이면 파란색
+      const isDuel = state.gameMode === "duel";
+      const gloveColor = isDuel ? "#3b82f6" : "#ef4444"; // 파란색(Blue) : 빨간색(Red)
+      const strokeColor = isDuel ? "#1d4ed8" : "#b91c1c";
+      
+      ctx.save();
+      ctx.translate(x, y);
+      
+      // 글러브 외곽 몸체
+      ctx.fillStyle = gloveColor;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 4;
+      
+      // 메인 주먹 뭉치 (둥근 사각형/타원 조합)
+      ctx.beginPath();
+      ctx.arc(0, -5, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // 엄지 손가락 부분
+      ctx.beginPath();
+      ctx.arc(-14, 2, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // 손목 밴드 부분
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(-16, 14, 32, 10, 3) : ctx.rect(-16, 14, 32, 10);
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+
+    // ==================== TARGET SYSTEM ====================
+    function spawnTarget() {
+      const activeStage = stages[state.level - 1];
+      if (state.targets.length >= activeStage.maxTargets) return;
+
+      const id = Date.now() + Math.random().toString(36).substr(2, 5);
+      const type = activeStage.targetTypes[Math.floor(Math.random() * activeStage.targetTypes.length)];
+      const reqHand = activeStage.requiredHands[Math.floor(Math.random() * activeStage.requiredHands.length)];
+      
+      const size = parseInt(el.configTargetSize.value);
+      
+      let x, y;
+      let ownerTeam = "any"; // "red" (P1 left), "blue" (P2 right) or "any"
+      
+      if (state.gameMode === "duel") {
+        // 대결 모드: 50% 확률로 1P(좌측) 또는 2P(우측) 영역 배정
+        const isLeft = Math.random() < 0.5;
+        ownerTeam = isLeft ? "red" : "blue";
+        if (isLeft) {
+          x = Math.random() * (stageWidth / 2 - size - 80) + 40;
+        } else {
+          x = Math.random() * (stageWidth / 2 - size - 80) + (stageWidth / 2) + 40;
+        }
+        y = Math.random() * (stageHeight - size - 140) + 70;
+      } else {
+        // 1인용 모드 기존 로직
+        x = Math.random() * (stageWidth - size - 200) + 100;
+        y = Math.random() * (stageHeight - size - 200) + 100;
+      }
+
+      // 속도 설정
+      const speed = activeStage.speedMultiplier;
+      let vx = (Math.random() - 0.5) * 4 * speed;
+      let vy = (Math.random() - 0.5) * 4 * speed;
+
+      const meta = TARGET_METADATA[type];
+      const target = {
+        id, type, x, y, size, vx, vy,
+        score: meta.score,
+        requiredHand: reqHand,
+        ownerTeam,
+        createdAt: Date.now(),
+        lifetime: 4200 / speed, // 속도에 따라 생존 시간 조정
+        hit: false
+      };
+
+      state.targets.push(target);
+      renderTargetDOM(target);
+      playSynthSound("spawn");
+    }
+
+    function renderTargetDOM(target) {
+      const div = document.createElement("div");
+      div.id = `target-${target.id}`;
+      div.className = "absolute pointer-events-auto target-entrance select-none cursor-pointer";
+      div.style.left = `${(target.x / stageWidth) * 100}%`;
+      div.style.top = `${(target.y / stageHeight) * 100}%`;
+      div.style.width = `${target.size}px`;
+      div.style.height = `${target.size}px`;
+
+      // 손 구분에 따른 스타일 테두리
+      let borderStyle = "border-4 border-yellow-400"; // any
+      if (target.requiredHand === "left") borderStyle = "border-4 border-red-500 bg-red-50/20";
+      if (target.requiredHand === "right") borderStyle = "border-4 border-blue-500 bg-blue-50/20";
+      if (target.requiredHand === "both") borderStyle = "border-4 border-purple-500 bg-purple-50/20";
+
+      // SVG 드로잉을 통한 각 타겟 오브젝트 디테일 표현
+      let svgContent = "";
+      const meta = TARGET_METADATA[target.type];
+      
+      if (target.type === "star") {
+        svgContent = `<polygon points="50,5 64,36 98,36 70,57 81,91 50,70 19,91 30,57 2,36 36,36" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>`;
+      } else if (target.type === "cloud") {
+        svgContent = `<path d="M 20 60 A 15 15 0 0 1 35 45 A 18 18 0 0 1 65 45 A 15 15 0 0 1 80 60 A 12 12 0 0 1 70 75 L 30 75 A 12 12 0 0 1 20 60 Z" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+                      <circle cx="42" cy="58" r="3" fill="#334155"/>
+                      <circle cx="58" cy="58" r="3" fill="#334155"/>
+                      <path d="M 46 64 Q 50 67 54 64" stroke="#334155" stroke-width="2" fill="none"/>`;
+      } else if (target.type === "balloon") {
+        svgContent = `<ellipse cx="50" cy="45" rx="30" ry="38" fill="#ec4899" stroke="#be185d" stroke-width="2"/>
+                      <polygon points="50,83 45,90 55,90" fill="#be185d"/>
+                      <path d="M 50,90 Q 45,95 48,100" stroke="#be185d" stroke-width="2" fill="none"/>`;
+      } else if (target.type === "jelly") {
+        svgContent = `<rect x="20" y="25" width="60" height="50" rx="20" fill="#10b981" stroke="#047857" stroke-width="2"/>
+                      <circle cx="40" cy="45" r="3" fill="#fff"/>
+                      <circle cx="60" cy="45" r="3" fill="#fff"/>`;
+      } else if (target.type === "droplet") {
+        svgContent = `<path d="M 50 10 C 50 10 20 55 20 70 A 30 30 0 0 0 80 70 C 80 55 50 10 50 10 Z" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2"/>`;
+      } else if (target.type === "sun") {
+        svgContent = `<circle cx="50" cy="50" r="25" fill="#f97316" stroke="#c2410c" stroke-width="2"/>
+                      <path d="M 50 10 L 50 20 M 50 80 L 50 90 M 10 50 L 20 50 M 80 50 L 90 50" stroke="#c2410c" stroke-width="3" stroke-linecap="round"/>`;
+      } else if (target.type === "spaceball") {
+        svgContent = `<circle cx="50" cy="50" r="35" fill="#8b5cf6" stroke="#5b21b6" stroke-width="2"/>
+                      <ellipse cx="50" cy="50" rx="45" ry="12" fill="none" stroke="#a78bfa" stroke-width="4" transform="rotate(-15 50 50)"/>`;
+      } else { // rainbowshield
+        svgContent = `<path d="M 20 20 Q 50 10 80 20 L 80 50 C 80 70 50 90 50 90 C 50 90 20 70 20 50 Z" fill="#a855f7" stroke="#7e22ce" stroke-width="2"/>
+                      <path d="M 30 30 Q 50 22 70 30" stroke="#fbbf24" stroke-width="3" fill="none"/>
+                      <path d="M 35 45 Q 50 37 65 45" stroke="#ec4899" stroke-width="3" fill="none"/>`;
+      }
+
+      // 타겟 내부 구성
+      div.innerHTML = `
+        <div class="w-full h-full rounded-full relative flex items-center justify-center p-1 ${borderStyle} transition-all duration-300">
+          <svg viewBox="0 0 100 100" class="w-full h-full">${svgContent}</svg>
+          <!-- 지시 손 안내 뱃지 -->
+          ${target.requiredHand !== 'any' ? `
+            <span class="absolute -bottom-2 -right-2 bg-slate-900 border border-white text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+              ${target.requiredHand === 'left' ? '왼손빨강' : target.requiredHand === 'right' ? '오른손파랑' : '양손보라'}
+            </span>
+          ` : ''}
+        </div>
+      `;
+
+      // 터치 모드 또는 오버라이드 켜진 경우 마우스 타격 지원
+      div.addEventListener("mousedown", (e) => {
+        if (CONFIG.touchOverride || state.isTouchMode) {
+          const rect = el.targetLayer.getBoundingClientRect();
+          const clickX = ((e.clientX - rect.left) / rect.width) * stageWidth;
+          const clickY = ((e.clientY - rect.top) / rect.height) * stageHeight;
+          
+          state.punchStats.totalAttempts++;
+          checkTargetCollision(clickX, clickY, "any");
+        }
+      });
+
+      el.targetLayer.appendChild(div);
+    }
+
+    // 타겟 프레임별 업데이트 루프 (애니메이션 이동 및 소멸 처리)
+    function updateTargets() {
+      if (!state.isPlaying || state.isPaused) return;
+
+      const now = Date.now();
+      for (let i = state.targets.length - 1; i >= 0; i--) {
+        const t = state.targets[i];
+        
+        // 시간 초과 소멸 검사
+        if (now - t.createdAt > t.lifetime) {
+          removeTargetDOM(t.id);
+          state.targets.splice(i, 1);
+          
+          // 콤보 초기화 및 생명력 차감
+          state.combo = 0;
+          state.lives--;
+          playSynthSound("miss");
+          showTextEffect(t.x + t.size/2, t.y + t.size/2, "놓쳤어요! 다시도전!", "text-orange-500 font-extrabold");
+          
+          updateHud();
+
+          if (state.lives <= 0) {
+            endStage(false); // 라이프 아웃 패배
+          }
+          continue;
+        }
+
+        // 바운싱 움직임 계산
+        t.x += t.vx;
+        t.y += t.vy;
+
+        // 벽 충돌 반사 (대결 모드인 경우 중앙선 충돌 물리 처리 추가)
+        if (state.gameMode === "duel") {
+          if (t.ownerTeam === "red") { // 좌측 영역
+            if (t.x < 10 || t.x > stageWidth / 2 - t.size - 10) t.vx *= -1;
+          } else { // 우측 영역
+            if (t.x < stageWidth / 2 + 10 || t.x > stageWidth - t.size - 10) t.vx *= -1;
+          }
+        } else {
+          if (t.x < 10 || t.x > stageWidth - t.size - 10) t.vx *= -1;
+        }
+        if (t.y < 10 || t.y > stageHeight - t.size - 10) t.vy *= -1;
+
+        // DOM 위치 싱크
+        const dom = document.getElementById(`target-${t.id}`);
+        if (dom) {
+          dom.style.left = `${(t.x / stageWidth) * 100}%`;
+          dom.style.top = `${(t.y / stageHeight) * 100}%`;
+        }
+      }
+    }
+
+    // 매 프레임 타겟 움직임 구동용 리퀘스트 루프
+    function startTargetUpdateLoop() {
+      function loop() {
+        if (state.isPlaying && !state.isPaused) {
+          updateTargets();
+        }
+        requestAnimationFrame(loop);
+      }
+      requestAnimationFrame(loop);
+    }
+    startTargetUpdateLoop();
+
+    function removeTargetDOM(id) {
+      const dom = document.getElementById(`target-${id}`);
+      if (dom) dom.remove();
+    }
+
+    // ==================== COLLISION & HIT DETECT ====================
+    function checkTargetCollision(x, y, hand) {
+      if (!state.isPlaying || state.isPaused) return;
+
+      state.punchStats.hitAttempts++;
+
+      for (let i = 0; i < state.targets.length; i++) {
+        const t = state.targets[i];
+        if (t.hit) continue;
+
+        // 대결 모드: 공격자의 주먹 위치가 타겟 소속 영역에 일치하는지 확인
+        if (state.gameMode === "duel" && t.ownerTeam !== "any") {
+          // x < stageWidth / 2 이면 P1 주먹, x >= stageWidth / 2 이면 P2 주먹
+          const isP1Punch = x < stageWidth / 2;
+          const isTargetP1 = t.ownerTeam === "red";
+          if (isP1Punch !== isTargetP1) {
+            // 자신의 구역이 아닌 곳을 타격한 경우 무시
+            continue;
+          }
+        }
+
+        // 중앙 중심좌표 기준 거리 계산
+        const radius = t.size / 2;
+        const centerX = t.x + radius;
+        const centerY = t.y + radius;
+        const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+
+        // 패딩 보정을 포함한 충돌 판단
+        if (dist <= radius + 15) {
+          // 손 속성 일치 여부 확인
+          if (t.requiredHand !== "any" && hand !== "any") {
+            if (t.requiredHand === "left" && hand !== "left") {
+              showTextEffect(centerX, centerY, "반대 손! (왼손 사용)", "text-orange-500 font-extrabold");
+              if (state.gameMode === "duel") {
+                if (t.ownerTeam === "red") state.p1Combo = 0;
+                else state.p2Combo = 0;
+              } else {
+                state.combo = 0;
+              }
+              updateHud();
+              return;
+            }
+            if (t.requiredHand === "right" && hand !== "right") {
+              showTextEffect(centerX, centerY, "반대 손! (오른손 사용)", "text-orange-500 font-extrabold");
+              if (state.gameMode === "duel") {
+                if (t.ownerTeam === "red") state.p1Combo = 0;
+                else state.p2Combo = 0;
+              } else {
+                state.combo = 0;
+              }
+              updateHud();
+              return;
+            }
+          }
+
+          // 히트 확정
+          t.hit = true;
+          handleTargetHit(t, i, dist, hand, x);
+          break;
+        }
+      }
+    }
+
+    function handleTargetHit(target, index, dist, hand, punchX) {
+      const meta = TARGET_METADATA[target.type];
+      const isDuel = state.gameMode === "duel";
+      
+      let finalScore = 0;
+      
+      if (isDuel) {
+        // 2인용 대결 모드 점수 및 콤보 처리
+        // 타격된 타겟의 영역 소유자에 따라 점수 지급
+        const isRedTeam = target.ownerTeam === "red";
+        
+        if (isRedTeam) {
+          state.p1Combo++;
+          state.p1HitStreak++;
+          
+          let comboMultiplier = 1.0;
+          if (state.p1Combo >= 15) comboMultiplier = 2.0;
+          else if (state.p1Combo >= 8) comboMultiplier = 1.5;
+          else if (state.p1Combo >= 4) comboMultiplier = 1.2;
+          
+          const maxRadius = target.size / 2;
+          const hitAccuracy = Math.max(0, 1 - (dist / maxRadius));
+          const accuracyBonus = Math.floor(target.score * 0.3 * hitAccuracy);
+          
+          finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
+          state.p1Score += finalScore;
+          
+          // Red가 많이 타격하면 Blue(P2) 얼굴에 멍/반창고 오버레이 출력
+          if (state.p1HitStreak >= 5) {
+            triggerFaceOverlay("p2");
+          }
+        } else {
+          state.p2Combo++;
+          state.p2HitStreak++;
+          
+          let comboMultiplier = 1.0;
+          if (state.p2Combo >= 15) comboMultiplier = 2.0;
+          else if (state.p2Combo >= 8) comboMultiplier = 1.5;
+          else if (state.p2Combo >= 4) comboMultiplier = 1.2;
+          
+          const maxRadius = target.size / 2;
+          const hitAccuracy = Math.max(0, 1 - (dist / maxRadius));
+          const accuracyBonus = Math.floor(target.score * 0.3 * hitAccuracy);
+          
+          finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
+          state.p2Score += finalScore;
+          
+          // Blue가 많이 타격하면 Red(P1) 얼굴에 멍/반창고 오버레이 출력
+          if (state.p2HitStreak >= 5) {
+            triggerFaceOverlay("p1");
+          }
+        }
+      } else {
+        // 1인용 모드 기존 콤보/점수 로직
+        state.combo++;
+        if (state.combo > state.maxCombo) {
+          state.maxCombo = state.combo;
+        }
+
+        let comboMultiplier = 1.0;
+        if (state.combo >= 20) comboMultiplier = 2.0;
+        else if (state.combo >= 10) comboMultiplier = 1.5;
+        else if (state.combo >= 5) comboMultiplier = 1.2;
+
+        const maxRadius = target.size / 2;
+        const hitAccuracy = Math.max(0, 1 - (dist / maxRadius));
+        const accuracyBonus = Math.floor(target.score * 0.3 * hitAccuracy);
+
+        finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
+        if (state.isSpecialMode) finalScore *= 2; // 피버 2배
+        state.score += finalScore;
+      }
+
+      // 카운트 기록
+      if (hand === "left") state.punchStats.leftCount++;
+      if (hand === "right") state.punchStats.rightCount++;
+
+      // 미션 진척도 누적 업데이트
+      updateMissions("hit_any", 1);
+      if (hand === "left") updateMissions("hit_left", 1);
+      if (hand === "right") updateMissions("hit_right", 1);
+      if (target.requiredHand === "both") updateMissions("hit_both", 1);
+      
+      const currentHighestCombo = isDuel ? Math.max(state.p1Combo, state.p2Combo) : state.combo;
+      const currentHighestScore = isDuel ? Math.max(state.p1Score, state.p2Score) : state.score;
+      
+      updateMissions("max_combo", currentHighestCombo);
+      updateMissions("score", currentHighestScore);
+
+      // 종합 정확도 비율
+      const totalAccuracy = Math.floor((state.punchStats.leftCount + state.punchStats.rightCount) / Math.max(1, state.punchStats.totalAttempts) * 100);
+      updateMissions("accuracy", totalAccuracy);
+
+      // 비주얼 임팩트 연출
+      playSynthSound(hand === "right" ? "hit_right" : "hit_left");
+      if (!isDuel && state.combo % 5 === 0) playSynthSound("combo");
+
+      const dom = document.getElementById(`target-${target.id}`);
+      if (dom) {
+        dom.classList.remove("target-entrance");
+        dom.classList.add("target-hit-animate");
+        setTimeout(() => dom.remove(), 300);
+      }
+
+      // 중심 좌표 산출
+      const centerX = target.x + target.size / 2;
+      const centerY = target.y + target.size / 2;
+
+      // 터지는 스플래시 메시지 텍스트
+      showTextEffect(centerX, centerY, `${meta.phrase} +${finalScore}`, "text-yellow-400 font-extrabold text-xl");
+
+      // 콤보 이펙트 플래시
+      if (!isDuel && state.combo >= 5) {
+        flashScreenBorder();
+      }
+
+      // 별 파티클 생성
+      spawnParticles(centerX, centerY, meta.color);
+
+      // 게이지 충전
+      increaseSpecialGauge(state.isSpecialMode ? 0 : 8);
+
+      // 배열 제거
+      state.targets.splice(index, 1);
+      updateHud();
+    }
+
+    function triggerFaceOverlay(player) {
+      if (faceEffects[player]) {
+        faceEffects[player].show = true;
+        if (faceEffects[player].timer) clearTimeout(faceEffects[player].timer);
+        
+        faceEffects[player].timer = setTimeout(() => {
+          faceEffects[player].show = false;
+          if (player === "p1") state.p2HitStreak = 0;
+          else state.p1HitStreak = 0;
+        }, 3500);
+      }
+    }
+
+    function updateMissions(id, value) {
+      state.missions.forEach(m => {
+        if (m.id === id) {
+          if (id === "max_combo" || id === "score" || id === "accuracy") {
+            m.cur = Math.max(m.cur, value);
+          } else {
+            m.cur += value;
+          }
+          if (m.cur >= m.target) {
+            m.cur = m.target;
+            if (!m.done) {
+              m.done = true;
+              playSynthSound("special_charge");
+            }
+          }
+        }
+      });
+      renderMissions();
+    }
+
+    // ==================== VISUAL EFFECTS & ANIMATIONS ====================
+    function showTextEffect(x, y, text, cssClasses) {
+      const effect = document.createElement("div");
+      effect.className = `absolute pointer-events-none transform -translate-x-1/2 -translate-y-1/2 text-center text-sm md:text-lg transition-all duration-700 ease-out z-35 ${cssClasses}`;
+      effect.style.left = `${(x / stageWidth) * 100}%`;
+      effect.style.top = `${(y / stageHeight) * 100}%`;
+      effect.textContent = text;
+      
+      el.effectLayer.appendChild(effect);
+
+      // 위로 스르륵 밀어올림과 동시에 페이드아웃
+      setTimeout(() => {
+        effect.style.top = `${((y - 40) / stageHeight) * 100}%`;
+        effect.style.opacity = "0";
+      }, 50);
+
+      setTimeout(() => effect.remove(), 700);
+    }
+
+    function spawnParticles(x, y, color) {
+      for (let i = 0; i < 8; i++) {
+        const p = document.createElement("div");
+        p.className = "absolute w-3 h-3 rounded-full pointer-events-none z-30 transition-all duration-500 ease-out";
+        p.style.backgroundColor = color;
+        p.style.left = `${(x / stageWidth) * 100}%`;
+        p.style.top = `${(y / stageHeight) * 100}%`;
+
+        // 랜덤 방사 속도
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 50 + 20;
+        const dx = Math.cos(angle) * speed;
+        const dy = Math.sin(angle) * speed;
+
+        el.effectLayer.appendChild(p);
+
+        setTimeout(() => {
+          p.style.transform = `translate(${dx}px, ${dy}px) scale(0.2)`;
+          p.style.opacity = "0";
+        }, 50);
+
+        setTimeout(() => p.remove(), 500);
+      }
+    }
+
+    function flashScreenBorder() {
+      const container = document.getElementById("game-stage-container");
+      container.classList.add("ring-4", "ring-pink-400", "ring-inset");
+      setTimeout(() => {
+        container.classList.remove("ring-4", "ring-pink-400", "ring-inset");
+      }, 300);
+    }
+
+    // ==================== SPECIAL MODE (STARLIGHT TIME) ====================
+    function increaseSpecialGauge(amount) {
+      if (state.isSpecialMode) return;
+      state.specialGauge = Math.min(100, state.specialGauge + amount);
+      updateGaugeUI();
+
+      if (state.specialGauge >= 100) {
+        activateSpecialMode();
+      }
+    }
+
+    // 게이지 UI 업데이트
+    function updateGaugeUI() {
+      el.specialGaugeBar.style.width = `${state.specialGauge}%`;
+      el.specialGaugePercent.textContent = `${state.specialGauge}%`;
+    }
+
+    function activateSpecialMode() {
+      state.isSpecialMode = true;
+      state.specialGauge = 100;
+      updateGaugeUI();
+
+      playSynthSound("special_start");
+
+      // 비주얼 플래그 켜기
+      el.starlightOverlay.classList.remove("hidden");
+      el.starlightOverlay.className = "absolute inset-0 special-active-border pointer-events-none z-20";
+      el.starlightBadge.classList.remove("hidden");
+
+      // 폭죽 리액션
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.8 }
+      });
+
+      // 8초간 별빛 피버 활성화
+      if (state.specialTimer) clearTimeout(state.specialTimer);
+      state.specialTimer = setTimeout(() => {
+        deactivateSpecialMode();
+      }, 8000);
+    }
+
+    function deactivateSpecialMode() {
+      state.isSpecialMode = false;
+      state.specialGauge = 0;
+      updateGaugeUI();
+
+      el.starlightOverlay.className = "absolute inset-0 bg-yellow-300/10 border-8 border-transparent pointer-events-none z-20 hidden";
+      el.starlightBadge.classList.add("hidden");
+    }
+
+    // ==================== STAGE END & RESULTS ====================
+    function endStage(isSuccess) {
+      state.isPlaying = false;
+      if (window.spawnTimer) clearInterval(window.spawnTimer);
+      if (window.gameTimer) clearInterval(window.gameTimer);
+      if (window.coachTimer) clearInterval(window.coachTimer);
+      deactivateSpecialMode();
+
+      // UI 요소 정리
+      el.targetLayer.innerHTML = "";
+
+      if (isSuccess) {
+        playSynthSound("stage_clear");
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.5 }
+        });
+        showResult(true);
+      } else {
+        playSynthSound("game_over");
+        showResult(false);
+      }
+    }
+
+    function showResult(isSuccess) {
+      el.resultScreen.classList.remove("hidden");
+      el.resultScreen.classList.add("flex");
+
+      const isDuel = state.gameMode === "duel";
+
+      if (isDuel) {
+        const winnerText = state.p1Score === state.p2Score 
+          ? "무승부예요! 🤝" 
+          : (state.p1Score > state.p2Score ? "🔴 주호 승리! 🎉" : "🔵 서호 승리! 🎉");
+        el.resultTitle.textContent = winnerText;
+        el.resultTitle.className = "text-3xl text-center text-blue-900 font-black mb-1";
+        
+        el.resultScore.innerHTML = `<span class="text-red-500">주호:${state.p1Score}</span> vs <span class="text-blue-500">서호:${state.p2Score}</span>`;
+        el.resultMaxCombo.textContent = `주호 ${state.p1Combo} | 서호 ${state.p2Combo}`;
+      } else {
+        if (isSuccess) {
+          el.resultTitle.textContent = "스테이지 완료! 👑";
+          el.resultTitle.className = "text-3xl text-center text-yellow-500 font-black mb-1";
+        } else {
+          el.resultTitle.textContent = "다시 해볼까요? 👍";
+          el.resultTitle.className = "text-3xl text-center text-orange-500 font-black mb-1";
+        }
+        el.resultScore.textContent = `${state.score.toLocaleString()}점`;
+        el.resultMaxCombo.textContent = `${state.maxCombo} COMBO`;
+      }
+      
+      el.resultLeftCnt.textContent = `${state.punchStats.leftCount}회`;
+      el.resultRightCnt.textContent = `${state.punchStats.rightCount}회`;
+      
+      const totalPunches = state.punchStats.leftCount + state.punchStats.rightCount;
+      const acc = state.punchStats.totalAttempts > 0 ? Math.floor((totalPunches / state.punchStats.totalAttempts) * 100) : 0;
+      el.resultAccuracy.textContent = `${acc}%`;
+      el.resultGuardCnt.textContent = `${state.punchStats.guardReturnCount}회`;
+
+      // 칭찬 메세지 배정
+      let coachFeedback = "조금만 더 힘내볼까요? 주먹을 뻗는 타이밍을 맞춰봐요!";
+      if (isDuel) {
+        coachFeedback = "두 선수 모두 멋진 대결을 펼쳐주었어요! 👏";
+      } else if (isSuccess) {
+        if (state.score > 4000) coachFeedback = "최고의 파이터! 복싱 챔피언 왕관을 수여할게요!";
+        else if (state.maxCombo > 10) coachFeedback = "대단해요! 리듬을 완벽하게 탔어요!";
+        else coachFeedback = "참 잘했어요! 다음 단계도 함께 도전해 볼까요?";
+      }
+      el.resultCoachMsg.textContent = `"${coachFeedback}"`;
+
+      // 미션 상태 렌더링
+      el.resultCompletedMissions.innerHTML = state.missions.map(m => {
+        const mark = m.done ? '<span class="text-green-500 font-bold">✔️ 성공</span>' : '<span class="text-slate-400">❌ 미달성</span>';
+        return `<div class="flex justify-between text-xs py-0.5 border-b"><span>${m.icon} ${m.desc}</span>${mark}</div>`;
+      }).join("");
+
+      // 로컬 스토리지 하이스코어 연산
+      const keyBestScore = `arBoxing_bestScore_L${state.level}`;
+      const prevBest = parseInt(localStorage.getItem(keyBestScore) || 0);
+      if (state.score > prevBest) {
+        localStorage.setItem(keyBestScore, state.score);
+        el.resultHighscoreBadge.classList.remove("hidden");
+      } else {
+        el.resultHighscoreBadge.classList.add("hidden");
+      }
+
+      // 별 평점 연산 (1~3성)
+      let stars = 1;
+      if (isSuccess) {
+        let doneCount = state.missions.filter(m => m.done).length;
+        if (doneCount === state.missions.length) stars = 3;
+        else if (doneCount > 0) stars = 2;
+      } else {
+        stars = 0;
+      }
+
+      el.starIcon1.style.opacity = stars >= 1 ? "1" : "0.2";
+      el.starIcon2.style.opacity = stars >= 2 ? "1" : "0.2";
+      el.starIcon3.style.opacity = stars >= 3 ? "1" : "0.2";
+
+      // 5단계 클리어라면 다음 단계 버튼 비활성
+      if (state.level >= 5) {
+        el.btnNextStage.classList.add("hidden");
+      } else {
+        el.btnNextStage.classList.remove("hidden");
+      }
+
+      // 레벨 바 갱신
+      updateLevelProgressHUD();
+    }
+
+    function updateLevelProgressHUD() {
+      const activeStage = state.level;
+      const pct = (activeStage / 5) * 100;
+      el.levelProgressBar.style.width = `${pct}%`;
+      el.levelProgressTxt.textContent = `${activeStage} / 5`;
+    }
+
+    // ==================== INTERACTIVE USER CONTROLS ====================
+    // 1인용 / 2인용 모드 설정 토글 버튼 이벤트 리스너 추가
+    const btnModeSingle = document.getElementById("btn-mode-single");
+    const btnModeDuel = document.getElementById("btn-mode-duel");
+    
+    if (btnModeSingle && btnModeDuel) {
+      btnModeSingle.addEventListener("click", () => {
+        state.gameMode = "single";
+        btnModeSingle.className = "flex-1 bg-yellow-400 text-blue-900 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm";
+        btnModeDuel.className = "flex-1 bg-white/10 hover:bg-white/20 text-white font-extrabold py-2 px-4 rounded-xl transition-all";
+      });
+      btnModeDuel.addEventListener("click", () => {
+        state.gameMode = "duel";
+        btnModeDuel.className = "flex-1 bg-yellow-400 text-blue-900 font-extrabold py-2 px-4 rounded-xl transition-all shadow-sm";
+        btnModeSingle.className = "flex-1 bg-white/10 hover:bg-white/20 text-white font-extrabold py-2 px-4 rounded-xl transition-all";
+      });
+    }
+
+    el.btnToggleConfig.addEventListener("click", () => el.configPanel.classList.toggle("hidden"));
+    el.btnCloseConfig.addEventListener("click", () => el.configPanel.classList.add("hidden"));
+
+    // 제어 설정 슬라이더 감지 리스너
+    el.configSens.addEventListener("input", (e) => {
+      el.configSensTxt.textContent = e.target.value;
+    });
+    el.configTargetSize.addEventListener("input", (e) => {
+      el.configTargetSizeTxt.textContent = `${e.target.value}px`;
+    });
+
+    el.btnResetBest.addEventListener("click", () => {
+      if (confirm("모든 스테이지의 최고 기록을 초기화할까요?")) {
+        for (let i = 1; i <= 5; i++) {
+          localStorage.removeItem(`arBoxing_bestScore_L${i}`);
+        }
+        alert("성공적으로 초기화되었습니다.");
+      }
+    });
+
+    // 시작 화면 핸들러
+    el.btnStartCamera.addEventListener("click", async () => {
+      try {
+        await initCamera();
+        await loadPoseModel();
+      } catch (err) {
+        el.introActionArea.classList.add("hidden");
+        el.introError.classList.remove("hidden");
+      }
+    });
+
+    el.btnStartTouch.addEventListener("click", () => {
+      switchToTouchFallback();
+    });
+
+    el.btnRetryCamera.addEventListener("click", async () => {
+      el.introError.classList.add("hidden");
+      el.introActionArea.classList.remove("hidden");
+      try {
+        await initCamera();
+        await loadPoseModel();
+      } catch (e) {
+        el.introActionArea.classList.add("hidden");
+        el.introError.classList.remove("hidden");
+      }
+    });
+
+    el.btnFallbackTouch.addEventListener("click", () => {
+      switchToTouchFallback();
+    });
+
+    // 게임 중 HUD 버튼 바인딩
+    el.btnSound.addEventListener("click", toggleSound);
+    
+    el.btnPause.addEventListener("click", () => {
+      if (state.isPlaying && !state.isPaused) {
+        state.isPaused = true;
+        el.pauseScreen.classList.replace("hidden", "flex");
+      }
+    });
+
+    el.btnResume.addEventListener("click", () => {
+      state.isPaused = false;
+      el.pauseScreen.classList.replace("flex", "hidden");
+    });
+
+    el.btnRestartStage.addEventListener("click", () => {
+      el.pauseScreen.classList.replace("flex", "hidden");
+      startStage(state.level);
+    });
+
+    el.btnExit.addEventListener("click", () => {
+      if (confirm("정말 메인 화면으로 돌아갈까요? 진행중인 게임은 저장되지 않아요.")) {
+        resetGameToMainMenu();
+      }
+    });
+
+    // 결과 창 버튼 바인딩
+    el.btnNextStage.addEventListener("click", () => {
+      el.resultScreen.classList.replace("flex", "hidden");
+      startStage(state.level + 1);
+    });
+
+    el.btnRetryStage.addEventListener("click", () => {
+      el.resultScreen.classList.replace("flex", "hidden");
+      startStage(state.level);
+    });
+
+    el.btnResultExit.addEventListener("click", () => {
+      el.resultScreen.classList.replace("flex", "hidden");
+      resetGameToMainMenu();
+    });
+
+    function resetGameToMainMenu() {
+      state.isPlaying = false;
+      if (window.spawnTimer) clearInterval(window.spawnTimer);
+      if (window.gameTimer) clearInterval(window.gameTimer);
+      if (window.coachTimer) clearInterval(window.coachTimer);
+      stopCamera();
+      deactivateSpecialMode();
+
+      el.targetLayer.innerHTML = "";
+      el.introScreen.classList.remove("hidden");
+      el.introActionArea.classList.remove("hidden");
+      el.introLoading.classList.add("hidden");
+      el.introError.classList.add("hidden");
+    }
+
+    // 스테이지 목록 버튼 동적 렌더링
+    function buildStageSelectors() {
+      el.stageSelectors.innerHTML = stages.map(s => {
+        return `
+          <button id="btn-lvl-${s.level}" class="w-8 h-8 rounded-full border-2 border-sky-300 font-extrabold text-sm transition-all focus:outline-none" onclick="selectLevel(${s.level})" aria-label="스테이지 ${s.level} 바로 가기">
+            ${s.level}
+          </button>
+        `;
+      }).join("");
+    }
+
+    window.selectLevel = function(lvl) {
+      if (state.isPlaying && !confirm("이동 시 현재 진행 중인 스테이지가 리셋됩니다. 이동할까요?")) {
+        return;
+      }
+      startStage(lvl);
+    };
+
+    function highlightActiveStageSelector(level) {
+      stages.forEach(s => {
+        const btn = document.getElementById(`btn-lvl-${s.level}`);
+        if (btn) {
+          if (s.level === level) {
+            btn.className = "w-9 h-9 rounded-full bg-yellow-400 text-blue-900 border-2 border-yellow-500 font-extrabold text-base shadow-md transition-all scale-110";
+          } else {
+            btn.className = "w-8 h-8 rounded-full bg-white text-slate-600 border-2 border-sky-200 hover:bg-sky-50 font-extrabold text-sm transition-all";
+          }
+        }
+      });
+      updateLevelProgressHUD();
+    }
+
+    // ==================== ACCESSIBILITY & BACKGROUND STABILITY ====================
+    
+    // 브라우저 포커스 상실 시 자동 일시정지
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden" && state.isPlaying && !state.isPaused) {
+        state.isPaused = true;
+        el.pauseScreen.classList.replace("hidden", "flex");
+      }
+    });
+
+    // 화면 크기 회전 대응 재조정
+    window.addEventListener("resize", resizeCanvas);
+
+    // 어플리케이션 종료 시 스트림 클린업 리스너
+    window.addEventListener("beforeunload", () => {
+      stopCamera();
+    });
+
+    // 초기 파라미터 값 설정
+    el.configSens.value = CONFIG.punchVelocityThreshold;
+    el.configSensTxt.textContent = CONFIG.punchVelocityThreshold;
+    el.configTargetSize.value = CONFIG.targetBaseSize;
+    el.configTargetSizeTxt.textContent = `${CONFIG.targetBaseSize}px`;
+
+    // 초기 빌딩
+    buildStageSelectors();
+    updateLevelProgressHUD();
+
+  </script>
+</body>
+</html>
