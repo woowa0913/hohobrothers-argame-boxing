@@ -2,6 +2,6 @@
   "name": "hohobrothers-argame-boxing",
   "version": "1.0.0",
   "scripts": {
-    "build": "mkdir -p dist && cp index.html favicon.svg dist/"
+    "build": "mkdir -p dist && cp index.html favicon.svg hoho_song1.mp3 hoho_song2.mp3 dist/"
   }
 }

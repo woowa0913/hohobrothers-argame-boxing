@@ -1,3 +1,9 @@
 .DS_Store
 index_utf8.html
 .vercel
+node_modules/
+dist/
+output/
+public/
+.gstack/
+progress.md

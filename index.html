@@ -207,12 +207,20 @@
     
     <!-- 1. 상단 HUD -->
     <header class="bg-white/95 rounded-3xl p-3 md:p-4 border-4 border-sky-300 shadow-md flex flex-wrap items-center justify-between gap-3 relative w-full">
-      <!-- 로고 -->
-      <div class="flex items-center gap-2">
+      <!-- 로고 및 레벨 선택 -->
+      <div class="flex items-center gap-2 flex-wrap">
         <div class="text-2xl md:text-3xl text-sky-600 tracking-tight font-extrabold flex items-center gap-1">
           <span class="text-yellow-400 drop-shadow-[0_2px_0_#0284c7]">AR</span>복싱 챌린지⭐
         </div>
         <span id="badge-touch-mode" class="hidden bg-orange-100 text-orange-700 text-xs px-2.5 py-0.5 rounded-full border border-orange-200 font-bold">체험 모드</span>
+        
+        <!-- 레벨 선택 버튼들 헤더 내부로 이식 -->
+        <div class="flex items-center gap-1 ml-4 border-l border-slate-200 pl-4" id="stage-selectors">
+          <!-- 버튼 스크립트에서 동적 렌더링 -->
+        </div>
+        <button id="btn-toggle-config" class="text-xs bg-slate-200 hover:bg-slate-300 font-bold px-2 py-1 rounded-lg text-slate-700 transition-colors ml-2">
+          ⚙️ 설정
+        </button>
       </div>
 
       <!-- 정보 지표 그룹 -->
@@ -258,15 +266,15 @@
       </div>
     </header>
 
-    <!-- 2. 스테이지 조작 헤더 (테스트 및 스테이지 바로가기) -->
-    <div class="bg-white/80 rounded-2xl p-2 md:p-3 border-2 border-sky-200 flex flex-wrap items-center justify-between gap-2 shadow-sm text-sm w-full">
+    <!-- 2. 스테이지 조작 헤더 (테스트 및 스테이지 바로가기 - 숨김) -->
+    <div class="bg-white/80 rounded-2xl p-2 md:p-3 border-2 border-sky-200 flex flex-wrap items-center justify-between gap-2 shadow-sm text-sm w-full hidden">
       <div class="font-extrabold text-blue-800 flex items-center gap-1.5">
         <span>📍 레벨 선택:</span>
       </div>
-      <div class="flex items-center gap-1.5 flex-wrap" id="stage-selectors">
+      <div class="flex items-center gap-1.5 flex-wrap">
         <!-- 버튼 스크립트에서 동적 렌더링 -->
       </div>
-      <button id="btn-toggle-config" class="text-xs bg-slate-200 hover:bg-slate-300 font-bold px-2 py-1.5 rounded-lg text-slate-700 transition-colors">
+      <button class="text-xs bg-slate-200 hover:bg-slate-300 font-bold px-2 py-1.5 rounded-lg text-slate-700 transition-colors">
         ⚙️ 고급설정
       </button>
     </div>
@@ -316,7 +324,7 @@
         </div>
 
         <!-- 하단 레벨 진행도 및 경험치 바 & 스페셜 게이지 통합 -->
-        <div class="bg-white/95 rounded-2xl p-3 border-2 border-sky-200 flex flex-col gap-2 shadow-sm text-sm w-full">
+        <div class="bg-white/95 rounded-2xl p-3 border-2 border-sky-200 flex flex-col gap-2 shadow-sm text-sm w-full hidden">
           <!-- 레벨 진행도 -->
           <div class="flex items-center justify-between gap-4 w-full">
             <div class="flex items-center gap-2 min-w-[120px]">
@@ -376,8 +384,8 @@
       </div>
       <div class="pt-2 border-t border-slate-100">
         <label class="block text-xs text-slate-500 mb-1">🎵 배경음악(BGM) 볼륨</label>
-        <input type="range" id="config-bgm-volume" min="0" max="1" step="0.05" value="0.4" class="w-full">
-        <div class="flex justify-between text-xs text-slate-400"><span id="config-bgm-volume-txt">40%</span></div>
+        <input type="range" id="config-bgm-volume" min="0" max="1" step="0.05" value="0.08" class="w-full">
+        <div class="flex justify-between text-xs text-slate-400"><span id="config-bgm-volume-txt">8%</span></div>
       </div>
       <div class="pt-2 border-t border-slate-100">
         <label class="block text-xs text-slate-500 mb-1">🥊 효과음(SFX) 볼륨</label>
@@ -474,7 +482,7 @@
   <script>
     // ==================== CONFIG & STATE ====================
     const CONFIG = {
-      stageDuration: 45,
+      stageDuration: 90,
       maxLives: 3,
       poseFps: 20, // 20~30FPS 제한으로 성능 안정화
       punchCooldown: 280,
@@ -482,7 +490,7 @@
       punchExtensionThreshold: 1.12,
       targetBaseSize: 110,
       soundVolume: 0.15,
-      bgmVolume: 0.4,
+      bgmVolume: 0.08,
       sfxVolume: 0.4,
       debugPose: false,
       mirrorCamera: true,
@@ -493,7 +501,7 @@
     const stages = [
       {
         level: 1,
-        duration: 45,
+        duration: 90,
         spawnInterval: 1800,
         maxTargets: 1,
         targetTypes: ["star", "cloud"],
@@ -504,7 +512,7 @@
       },
       {
         level: 2,
-        duration: 45,
+        duration: 90,
         spawnInterval: 1600,
         maxTargets: 2,
         targetTypes: ["star", "cloud", "balloon"],
@@ -515,7 +523,7 @@
       },
       {
         level: 3,
-        duration: 45,
+        duration: 90,
         spawnInterval: 1400,
         maxTargets: 2,
         targetTypes: ["star", "cloud", "balloon", "jelly"],
@@ -526,7 +534,7 @@
       },
       {
         level: 4,
-        duration: 45,
+        duration: 90,
         spawnInterval: 1200,
         maxTargets: 3,
         targetTypes: ["star", "cloud", "balloon", "jelly", "droplet", "sun"],
@@ -537,7 +545,7 @@
       },
       {
         level: 5,
-        duration: 45,
+        duration: 90,
         spawnInterval: 1000,
         maxTargets: 4,
         targetTypes: ["star", "cloud", "balloon", "jelly", "droplet", "sun", "spaceball", "rainbowshield"],
@@ -574,8 +582,11 @@
       p2Combo: 0,
       p1HitStreak: 0,
       p2HitStreak: 0,
+      p1Damage: 0,
+      p2Damage: 0,
+      opponentDamage: 0,
       lives: 3,
-      timeLeft: 45,
+      timeLeft: 90,
       isPaused: false,
       isPlaying: false,
       specialGauge: 0,
@@ -600,6 +611,7 @@
     let audioCtx = null;
     let mainGainNode = null;
     let isSoundOn = true;
+    let currentBgmIndex = 1;
 
     // 미디어파이프 관련 전역 변수
     let poseLandmarker = null;
@@ -948,7 +960,7 @@
         });
 
         poseLandmarker.setOptions({
-          maxNumHands: 2,
+          maxNumHands: 4,
           modelComplexity: 1,
           minDetectionConfidence: 0.5,
           minTrackingConfidence: 0.5
@@ -1124,6 +1136,9 @@
       state.p2Combo = 0;
       state.p1HitStreak = 0;
       state.p2HitStreak = 0;
+      state.p1Damage = 0;
+      state.p2Damage = 0;
+      state.opponentDamage = 0;
       state.lives = CONFIG.maxLives;
       state.timeLeft = CONFIG.stageDuration;
       state.isPlaying = true;
@@ -1204,8 +1219,11 @@
       // 배경음악(BGM) 재생 시작 및 볼륨 세팅
       const bgmPlayer = document.getElementById("bgm-player");
       if (bgmPlayer) {
+        if (!bgmPlayer.src || bgmPlayer.src.includes("호호_브라더스") || bgmPlayer.src === "") {
+          currentBgmIndex = Math.random() > 0.5 ? 1 : 2;
+          bgmPlayer.src = `hoho_song${currentBgmIndex}.mp3`;
+        }
         bgmPlayer.volume = isSoundOn ? CONFIG.bgmVolume : 0;
-        bgmPlayer.currentTime = 0;
         bgmPlayer.play().catch(e => console.log("BGM play error:", e));
       }
     }
@@ -1394,7 +1412,7 @@
         });
 
         // 주먹의 위치에 글러브 그리기
-        drawGlove(screenX, screenY);
+        drawGlove(screenX, screenY, actualHand);
 
         // 손목 위치를 펀치 지점으로 전달하여 충돌 검사 실행
         state.punchStats.totalAttempts++;
@@ -1409,80 +1427,107 @@
       const isDuel = state.gameMode === "duel";
 
       for (const face of detectedFaces) {
-        // 화면 중간선 기준 좌/우 플레이어 구분
         const isLeft = face.x < stageWidth / 2;
         const playerKey = isLeft ? "p1" : "p2";
 
         let showBruise = false;
         let showBandage = false;
+        let bruiseCount = 0;
+        let bandageCount = 0;
 
         if (isDuel) {
-          // 대결 모드: P1/P2 타격 횟수에 따른 트리거 상태에 의존
-          if (faceEffects[playerKey].show) {
-            const streak = playerKey === "p1" ? state.p2HitStreak : state.p1HitStreak;
+          const damage = playerKey === "p1" ? state.p1Damage : state.p2Damage;
+          if (damage >= 1) {
             showBruise = true;
-            if (streak >= 8) {
-              showBandage = true;
-            }
+            bruiseCount = damage >= 3 ? 2 : 1;
+          }
+          if (damage >= 5) {
+            showBandage = true;
+            bandageCount = damage >= 8 ? 2 : 1;
           }
         } else {
-          // 1인용 모드: 남은 라이프 수량에 따라 멍/반창고 표시
-          // 라이프가 2개 이하이면 멍, 1개 이하이면 멍+반창고
-          if (state.lives === 2) {
+          const damage = state.opponentDamage;
+          if (damage >= 3) {
             showBruise = true;
-          } else if (state.lives === 1) {
-            showBruise = true;
+            bruiseCount = damage >= 6 ? 2 : 1;
+          }
+          if (damage >= 10) {
             showBandage = true;
+            bandageCount = damage >= 15 ? 2 : 1;
           }
         }
 
-        // 멍 그리기 (얼굴 크기 face.width 에 비례하여 크기 조절)
         if (showBruise) {
           const radius = Math.min(face.width, face.height) * 0.22;
           ctx.save();
-          // 남색 동그라미에 투명도를 살짝 부여 (사용자 피드백 반영: 남색 동그라미 투명도)
-          ctx.fillStyle = "rgba(10, 25, 90, 0.4)"; // 살짝 투명한 남색
+          ctx.fillStyle = "rgba(10, 25, 90, 0.4)";
           ctx.beginPath();
-          // 보통 눈밑/뺨 부위에 멍이 생기므로 중심 좌표에서 살짝 아래-좌측으로 오프셋
           ctx.arc(face.x - radius * 0.5, face.y + radius * 0.1, radius, 0, Math.PI * 2);
           ctx.fill();
+          
+          if (bruiseCount >= 2) {
+            ctx.beginPath();
+            ctx.arc(face.x + radius * 0.4, face.y + radius * 0.3, radius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
           ctx.restore();
         }
 
-        // 반창고 그리기
         if (showBandage) {
           const radius = Math.min(face.width, face.height) * 0.22;
           ctx.save();
-          // 뺨의 우측 상단 쪽에 반창고 부착
           ctx.translate(face.x + radius * 0.6, face.y + radius * 0.3);
-          ctx.rotate(-Math.PI / 10); // 살짝 비스듬히
-          
-          const rectW = radius * 1.6;
-          const rectH = radius * 0.55;
-          ctx.fillStyle = "rgba(224, 185, 120, 0.9)"; // 살색
-          ctx.strokeStyle = "rgba(180, 140, 80, 0.9)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.roundRect ? ctx.roundRect(-rectW / 2, -rectH / 2, rectW, rectH, 4) : ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
-          ctx.fill();
-          ctx.stroke();
-
-          // 반창고 중앙 격자 무늬
-          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-          ctx.fillRect(-rectW * 0.18, -rectH / 2, rectW * 0.36, rectH);
+          ctx.rotate(-Math.PI / 10);
+          drawSingleBandage(ctx, radius);
           ctx.restore();
+
+          if (bandageCount >= 2) {
+            ctx.save();
+            ctx.translate(face.x - radius * 0.4, face.y - radius * 0.7);
+            ctx.rotate(Math.PI / 8);
+            drawSingleBandage(ctx, radius * 0.9);
+            ctx.restore();
+          }
         }
       }
     }
 
-    function drawGlove(x, y) {
+    function drawSingleBandage(ctx, radius) {
+      const rectW = radius * 1.6;
+      const rectH = radius * 0.55;
+      ctx.fillStyle = "rgba(224, 185, 120, 0.9)";
+      ctx.strokeStyle = "rgba(180, 140, 80, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(-rectW / 2, -rectH / 2, rectW, rectH, 4) : ctx.rect(-rectW / 2, -rectH / 2, rectW, rectH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.fillRect(-rectW * 0.18, -rectH / 2, rectW * 0.36, rectH);
+    }
+
+    function drawGlove(x, y, hand) {
       const ctx = el.ctx;
       
       const isDuel = state.gameMode === "duel";
-      // 1인용이면 무조건 빨간색 글러브. 2인용이면 왼쪽(P1)은 빨간색, 오른쪽(P2)은 파란색.
       const isLeftPlayer = x < stageWidth / 2;
-      const gloveColor = (isDuel && !isLeftPlayer) ? "#3b82f6" : "#ef4444";
-      const strokeColor = (isDuel && !isLeftPlayer) ? "#1d4ed8" : "#b91c1c";
+      
+      let gloveColor = "#ef4444";
+      let strokeColor = "#b91c1c";
+      
+      if (isDuel) {
+        if (!isLeftPlayer) {
+          gloveColor = hand === "left" ? "#60a5fa" : "#3b82f6";
+          strokeColor = "#1d4ed8";
+        } else {
+          gloveColor = hand === "left" ? "#f472b6" : "#ef4444";
+          strokeColor = "#b91c1c";
+        }
+      } else {
+        gloveColor = hand === "left" ? "#f472b6" : "#ef4444";
+        strokeColor = "#b91c1c";
+      }
       
       ctx.save();
       ctx.translate(x, y);
@@ -1802,10 +1847,9 @@
           finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
           state.p1Score += finalScore;
           
-          // Red가 많이 타격하면 Blue(P2) 얼굴에 멍/반창고 오버레이 출력
-          if (state.p1HitStreak >= 5) {
-            triggerFaceOverlay("p2");
-          }
+          // Red가 타격 성공 -> Blue(P2) 피격 데미지 증가 및 멍/반창고 트리거
+          state.p2Damage++;
+          triggerFaceOverlay("p2");
         } else {
           state.p2Combo++;
           state.p2HitStreak++;
@@ -1822,10 +1866,9 @@
           finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
           state.p2Score += finalScore;
           
-          // Blue가 많이 타격하면 Red(P1) 얼굴에 멍/반창고 오버레이 출력
-          if (state.p2HitStreak >= 5) {
-            triggerFaceOverlay("p1");
-          }
+          // Blue가 타격 성공 -> Red(P1) 피격 데미지 증가 및 멍/반창고 트리거
+          state.p1Damage++;
+          triggerFaceOverlay("p1");
         }
       } else {
         // 1인용 모드 기존 콤보/점수 로직
@@ -1846,6 +1889,10 @@
         finalScore = Math.floor(target.score * comboMultiplier) + accuracyBonus;
         if (state.isSpecialMode) finalScore *= 2; // 피버 2배
         state.score += finalScore;
+        
+        // 1인용 모드: 상대방(나) 얼굴 피격 데미지 증가 및 멍/반창고 트리거
+        state.opponentDamage++;
+        triggerFaceOverlay("p1");
       }
 
       // 카운트 기록
@@ -1905,13 +1952,10 @@
     function triggerFaceOverlay(player) {
       if (faceEffects[player]) {
         faceEffects[player].show = true;
-        if (faceEffects[player].timer) clearTimeout(faceEffects[player].timer);
-        
-        faceEffects[player].timer = setTimeout(() => {
-          faceEffects[player].show = false;
-          if (player === "p1") state.p2HitStreak = 0;
-          else state.p1HitStreak = 0;
-        }, 3500);
+        if (faceEffects[player].timer) {
+          clearTimeout(faceEffects[player].timer);
+          faceEffects[player].timer = null;
+        }
       }
     }
 
@@ -2389,6 +2433,17 @@
       stopCamera();
     });
 
+    // BGM 자동 교대 이벤트 연동
+    const bgmPlayerObj = document.getElementById("bgm-player");
+    if (bgmPlayerObj) {
+      bgmPlayerObj.addEventListener("ended", () => {
+        currentBgmIndex = currentBgmIndex === 1 ? 2 : 1;
+        bgmPlayerObj.src = `hoho_song${currentBgmIndex}.mp3`;
+        bgmPlayerObj.volume = isSoundOn ? CONFIG.bgmVolume : 0;
+        bgmPlayerObj.play().catch(e => console.log("BGM switch error:", e));
+      });
+    }
+
     // 초기 파라미터 값 설정
     el.configSens.value = CONFIG.punchVelocityThreshold;
     el.configSensTxt.textContent = CONFIG.punchVelocityThreshold;
@@ -2400,6 +2455,6 @@
     updateLevelProgressHUD();
 
   </script>
-  <audio id="bgm-player" src="호호_브라더스.mp3" loop></audio>
+  <audio id="bgm-player" src="hoho_song1.mp3"></audio>
 </body>
 </html>
